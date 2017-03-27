@@ -3,13 +3,16 @@ sudo apt-get install python-dev
 pip install bottle gunicorn pymongo requests
 echo <<EOF >app.py
 """
-Example python hook that receives images and posts back labels
+This script installs and runs a sample web server that handles
+requests for labeling. This python hook receives images and posts 
+back the resulting labels to the requested callback_url.
 
-Exposes two urls:
-/myhook/<API_KEY> where the camio.com server will post events for processing
-/listtasks with returns a JSON with all uploaded events pending processing
-All uploaded events are stored in the tasks collection in mongodb
-A background process extracts them from mongodb and posts the labels back to camio.com 
+This sample exposed only two urls:
+1) POST /tasks/<API_KEY> - handles the payload of images to label.
+2) GET /tasks - responds with the JSON description of all uploaded events pending processing.
+
+All uploaded events are stored in the tasks collection in mongodb.
+A background process extracts them from mongodb and posts the labels back to the callback_url.
 """
 from __future__ import print_function
 from bottle import route, run, request, response, default_app
@@ -31,8 +34,8 @@ tasks = db['tasks']
 def index():
     return "it works!"
 
-@route('/myhook/<secret>',method='POST')
-def myhook(secret):
+@route('/tasks/<secret>',method='POST')
+def post_task(secret):
     body = request.body.read()    
     logging.info('payload size %s' % len(body))
     if secret != API_KEY:
@@ -45,11 +48,19 @@ def myhook(secret):
         images = payload.get('images')
     return 'ok'
 
-@route('/listtasks')
-def listtasks():
+@route('/tasks',method='GET')
+def get_tasks():
     all_tasks = tasks.find({'status':'pending'})
     return repr([task['request']['user_id']+'/'+task['request']['camera'] for task in all_tasks])
 
+###########################################################################
+# This is the function that you modify to perform your particular labeling.
+# The payload images looks like:
+# {
+#   ...
+# }
+#
+###########################################################################
 def compute_labels(images):
     return ['cat','dog','mouse']
 
