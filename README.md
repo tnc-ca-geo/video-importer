@@ -1,5 +1,5 @@
 ## video-importer
-Traverses directories to import video as segmented events with correct timestamps and metadata
+Traverses directories to import video as segmented events with correct timestamps and metadata. Details can be found [here](https://docs.google.com/document/d/1NoluaMS6brmOC9INlg2Ah9K9xM-aQcsoa-fe3x9WxDs/edit#)
 
 ### What is it
 The importer is an Open Source project to automate the ingestion of video files so that they can be labeled by advanced classifiers
