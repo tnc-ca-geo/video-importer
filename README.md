@@ -10,7 +10,7 @@ The Importer is for all Electronic Monitoring (EM) services that record video fo
 regulatory data quickly.
 
 ### Why is it needed
-The review and labeling of recorded video is slow. In fact, the elapsed time to review is often longer than the fishing trip's duration. \
+The review and labeling of recorded video is slow. In fact, the elapsed time to review is often longer than the fishing trip's duration.
 Until boats at-sea have the compute power and bandwidth sufficient to analyze, extract and upload data in real-time, the video review must
 start with the on-shore processing of hard drives filled with recorded video. 
 
