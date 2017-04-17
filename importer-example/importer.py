@@ -72,6 +72,10 @@ def upload_filename(filename, url, verbose):
             print 'connection refused'
             return False
 
+def register_camera(camera_name, token):
+    # TODO: implement this
+    return camera_name
+
 def upload_folder(path, dbname='.processes.shelve', post_url=None, 
                   regex=None, verbose=False, auth_token=None):
     if regex:
@@ -80,6 +84,7 @@ def upload_folder(path, dbname='.processes.shelve', post_url=None,
     shelve_name_lock = shelve_name + '.lock'
     lock_or_exit(shelve_name_lock)
     db = shelve.open(shelve_name)
+    cameras = {}
     unprocessed = []
     scheduled = set()
     for filename in folder_walker(path):        
@@ -92,11 +97,16 @@ def upload_folder(path, dbname='.processes.shelve', post_url=None,
             print '%s (uploaded)' % filename
         else:
             print '%s (scheduled for upload)' % filename
+            cameras[params['camera']] = None
             scheduled.add(key)
             params['filename'] = filename
             params['key'] = key
             params['given_name'] = given_name
             unprocessed.append(params)
+
+    for camera in cameras:
+        local_camera_id = register_camera(camera, auth_token)
+        cameras[camera] = local_camera_id
 
     k_max = len(unprocessed)
     for k, params in enumerate(unprocessed):
