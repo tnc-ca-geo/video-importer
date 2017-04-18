@@ -71,6 +71,9 @@ def upload_filename(filename, url, verbose):
             return False
 
 def register_camera(camera_name, device_id, server=None):
+    """
+    This is an example in case the the service requires registration of the camera
+    """
     if server:
         url = server+'/api/cameras/discovered'
         local_camera_id = hashlib.sha1(camera_name).hexdigest()
