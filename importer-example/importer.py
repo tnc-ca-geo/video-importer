@@ -8,7 +8,6 @@ import datetime
 import csv
 import StringIO
 import re
-
 import requests
 
 re_notascii = re.compile('\W')
@@ -71,19 +70,20 @@ def upload_filename(filename, url, verbose):
             print 'connection refused'
             return False
 
-def register_camera(camera_name, token, server=None):
+def register_camera(camera_name, device_id, server=None):
     if server:
-        # url = ...
-        # payload = {}
-        # res = requests.post(url, json=payload)
-        # TODO: implement this
-        pass
+        url = server+'/api/cameras/discovered'
+        local_camera_id = hashlib.sha1(camera_name).hexdigest()
+        cameras = {local_camera_id: {'camera_name':camera_name}}
+        payload = {'device_id':device_id, 'cameras':cameras}
+        res = requests.post(url, json=payload)
+        camera_id = res['cameras'][local_camera_id]['camera_id']
     else:
         camera_id = camera_name
     return camera_id
 
 def upload_folder(path, dbname='.processes.shelve', post_url=None, auth_token=None,
-                  regex=None, verbose=False, server=None):
+                  regex=None, verbose=False, server=None, device_id=None):
     if regex:
         regex = re.compile(regex)
     shelve_name = os.path.join(os.path.dirname(__file__),dbname)
@@ -123,13 +123,13 @@ def upload_folder(path, dbname='.processes.shelve', post_url=None, auth_token=No
             if not params.get('job_id'):
                 unscheduled.append(params)
 
-    for camera in cameras:
-        local_camera_id = register_camera(camera, auth_token, server)
-        cameras[camera] = local_camera_id
+    if device_id:
+        for camera in cameras:
+            local_camera_id = register_camera(camera, device_id, server)
+            cameras[camera] = local_camera_id
 
     item_count = len(unscheduled)
-    # if we have files to upload follow process in
-    # https://github.com/CamioCam/Camiolog-Web/issues/4555
+    # if we have files to upload follow process in https://github.com/CamioCam/Camiolog-Web/issues/4555
     if item_count and server:
         item_average_size_bytes = sum(params['size'] for params in unscheduled)/item_count
         payload = {'device_id':auth_token, 'item_count':item_count, 'item_average_size_bytes':item_average_size_bytes}
@@ -211,7 +211,7 @@ def listfiles(path, dbname='.processes.shelve'):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-S', '--server', default='https://example.com',
-                        help='base url of the camio API service')
+                        help='base url of the API service')
     parser.add_argument('-p', '--post_url', default='http://127.0.0.1:8888/upload/{filename}',
                         help='URL to post')
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
@@ -226,13 +226,16 @@ def main():
                         help='folder to process')
     parser.add_argument('-a', '--auth_token', default=None,
                         help='auth token for header')
+    parser.add_argument('-d', '--device_id', default=None,
+                        help='device_id')
     args = parser.parse_args()
 
     if args.csv:
         print listfiles(args.folder, dbname=args.storage)
     else:
         upload_folder(args.folder, dbname=args.storage, post_url=args.post_url,
-                      regex=args.regex, verbose=args.verbose, auth_token=args.auth_token, server=args.server)
+                      regex=args.regex, verbose=args.verbose, auth_token=args.auth_token, server=args.server,
+                      device_id=args.device_id)
 
 if __name__=='__main__':
     main()
