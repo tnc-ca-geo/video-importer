@@ -63,7 +63,6 @@ def hashfile(filename):
 
 def upload_filename(filename, url, verbose): 
     headers = {}  
-    # todo: maybe some try ... except
     with open(filename, 'rb') as myfile:
         try:
             res = requests.post(url, headers=headers, data=myfile)
@@ -72,12 +71,19 @@ def upload_filename(filename, url, verbose):
             print 'connection refused'
             return False
 
-def register_camera(camera_name, token):
-    # TODO: implement this
-    return camera_name
+def register_camera(camera_name, token, server=None):
+    if server:
+        # url = ...
+        # payload = {}
+        # res = requests.post(url, json=payload)
+        # TODO: implement this
+        pass
+    else:
+        camera_id = camera_name
+    return camera_id
 
-def upload_folder(path, dbname='.processes.shelve', post_url=None, 
-                  regex=None, verbose=False, auth_token=None):
+def upload_folder(path, dbname='.processes.shelve', post_url=None, auth_token=None,
+                  regex=None, verbose=False, server=None):
     if regex:
         regex = re.compile(regex)
     shelve_name = os.path.join(os.path.dirname(__file__),dbname)
@@ -86,7 +92,9 @@ def upload_folder(path, dbname='.processes.shelve', post_url=None,
     db = shelve.open(shelve_name)
     cameras = {}
     unprocessed = []
+    unscheduled = []
     scheduled = set()
+    discovered_on = now()
     for filename in folder_walker(path):        
         params = get_params(filename, regex)
         key = hashfile(filename)
@@ -99,24 +107,59 @@ def upload_folder(path, dbname='.processes.shelve', post_url=None,
             print '%s (scheduled for upload)' % filename
             cameras[params['camera']] = None
             scheduled.add(key)
-            params['filename'] = filename
-            params['key'] = key
-            params['given_name'] = given_name
+            if key in db:
+                params = db[key]
+            else:
+                params['filename'] = filename
+                params['key'] = key
+                params['given_name'] = given_name
+                params['discovered_on'] = discovered_on
+                params['uploaded_on'] = None
+                params['confirmed_on'] = None
+                params['size'] = os.path.getsize(params['filename'])
+                db[key] = params
+                db.sync()
             unprocessed.append(params)
+            if not params.get('job_id'):
+                unscheduled.append(params)
 
     for camera in cameras:
-        local_camera_id = register_camera(camera, auth_token)
+        local_camera_id = register_camera(camera, auth_token, server)
         cameras[camera] = local_camera_id
 
-    k_max = len(unprocessed)
+    item_count = len(unscheduled)
+    # if we have files to upload follow process in
+    # https://github.com/CamioCam/Camiolog-Web/issues/4555
+    if item_count and server:
+        item_average_size_bytes = sum(params['size'] for params in unscheduled)/item_count
+        payload = {'device_id':auth_token, 'item_count':item_count, 'item_average_size_bytes':item_average_size_bytes}
+        res = requests.put(server+'/api/jobs', json=payload)         
+        shards = res.json()
+        job_id = shards['job_id']
+        n = 0
+        upload_urls = []
+        for shard_id in sorted(shards['shard_map']):
+            shard = shards['shard_map'][shard_id]
+            n += shard['item_count']
+            upload_urls.append((n, shard_id, shard['upload_url']))
+
+        # for each new file to upload store the job_id and the upload_url from the proper shard
+        upload_urls_k = 0
+        for k, params in enumerate(unscheduled):        
+            key = params['key']
+            params['job_id'] = job_id
+            while k>=upload_urls[upload_urls_k][0]: upload_urls_k += 1
+            params['shard_id'] = upload_urls[upload_urls_k][1]
+            params['upload_url'] = upload_urls[upload_urls_k][2]
+            db[key] = params
+            db.sync()
+
+    total_count = len(unprocessed)
+    jobs = set()
     for k, params in enumerate(unprocessed):
-        print '%i/%i uploading %s' % (k+1, k_max, params['filename'])
+        print '%i/%i uploading %s' % (k+1, total_count, params['filename'])
         if verbose:
             print '     renamed %s' % given_name
-        discovered_on = now()
-        params['discovered_on'] = now()
-        params['uploaded_on'] = None
-        db[key] = params
         if post_url:
             vars = 'camera_id=%s&timestamp=%s,hash=%s,access_token=%s' % (
                 params['camera'], params['timestamp'], key, auth_token)
@@ -128,8 +171,25 @@ def upload_folder(path, dbname='.processes.shelve', post_url=None,
                 print 'error'
                 break
         params['uploaded_on'] = now()
+        jobs.add((params['job_id'], params['shard_id']))
         db[key] = params
         db.sync()
+
+    if server:
+        for job_id, shard_id in jobs:
+            rows = filter(lambda params: params['job_id'], params['shard_id'] == job_id, shard_id, db.values())
+            hash_map = {}
+            for params in rows:
+                hash_map[params['key']] = {'original_filename': params['filename'], 'size_MB': params['size']/1e6}
+                payload = {
+                    'job_id': job_id,
+                    'shard_id': shard_id,
+                    'item_count':len(rows),
+                    'hash_map': hash_map
+                    }
+            url = rows[0]['upload_url']
+            requests.put(url, json=payload)
+
     db.close()
 
 def listfiles(path, dbname='.processes.shelve'):    
@@ -150,6 +210,8 @@ def listfiles(path, dbname='.processes.shelve'):
     
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-S', '--server', default='https://example.com',
+                        help='base url of the camio API service')
     parser.add_argument('-p', '--post_url', default='http://127.0.0.1:8888/upload/{filename}',
                         help='URL to post')
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
@@ -169,8 +231,8 @@ def main():
     if args.csv:
         print listfiles(args.folder, dbname=args.storage)
     else:
-        upload_folder(args.folder, dbname=args.storage, post_url=args.post_url, 
-                      regex=args.regex, verbose=args.verbose, auth_token=args.auth_token)
+        upload_folder(args.folder, dbname=args.storage, post_url=args.post_url,
+                      regex=args.regex, verbose=args.verbose, auth_token=args.auth_token, server=args.server)
 
 if __name__=='__main__':
     main()
