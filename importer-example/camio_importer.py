@@ -101,7 +101,8 @@ class CamioImporter(GenericImporter):
 
     def post_video(self, camera, timestamp, key, filename):
         auth_token = self.args.auth_token
-        vars = 'camera_id=%s&timestamp=%s,hash=%s,access_token=%s' % (camera, timestamp, key, auth_token)
+        camera_id = self.cameras[camera]
+        vars = 'camera_id=%s&timestamp=%s,hash=%s,access_token=%s' % (camera_id, timestamp, key, auth_token)
         url = self.args.post_url+'?'+vars
         return self.upload_filename(filename, url)
 

@@ -81,7 +81,7 @@ class GenericImporter(object):
         shelve_name_lock = shelve_name + '.lock'
         self.lock_or_exit(shelve_name_lock)
         db = shelve.open(shelve_name)
-        cameras = {}
+        self.cameras = {}
         unprocessed = []
         unscheduled = []
         scheduled = set()
@@ -96,7 +96,7 @@ class GenericImporter(object):
                 logging.info('%s (uploaded)' % filename)
             else:
                 logging.info('%s (scheduled for upload)' % filename)
-                cameras[params['camera']] = None
+                self.cameras[params['camera']] = None
                 scheduled.add(key)
                 if key in db:
                     params = db[key]
@@ -114,9 +114,9 @@ class GenericImporter(object):
                 if not params.get('job_id'):
                     unscheduled.append(params)
 
-        for camera_name in cameras:
-            local_camera_id = self.register_camera(camera_name)
-            cameras[camera_name] = local_camera_id
+        for camera_name in self.cameras:
+            camera_id = self.register_camera(camera_name)
+            self.cameras[camera_name] = camera_id
 
         self.assign_job_ids(db, unscheduled)
 
