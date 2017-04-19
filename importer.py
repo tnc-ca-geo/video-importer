@@ -17,7 +17,7 @@ re_notascii = re.compile('\W')
 class GenericImporter(object):
     
     def get_params(self, path):
-        camera = epoch = None
+        camera = epoch = lat = lng = None
         if self.regex:
             match = self.regex.match(path)
             if match:
@@ -27,7 +27,12 @@ class GenericImporter(object):
                 try:
                     epoch = int(match.group('epoch'))
                 except: pass
-        
+                try:
+                    lat = float(match.group('lat'))                    
+                except: pass
+                try:
+                    lng = float(match.group('lng'))
+                except: pass
         if not camera:
             camera = "default"
         if not epoch:
@@ -35,7 +40,7 @@ class GenericImporter(object):
         timestamp = datetime.datetime.fromtimestamp(epoch).isoformat()
         # in case the epoch does nt have milliseconds
         if len(timestamp)==19: timestamp = timestamp+'.000'
-        return {'camera':camera, 'timestamp':timestamp}
+        return {'camera':camera, 'timestamp':timestamp, 'lat':lat, 'lng':lng}
 
     def now(self):
         return datetime.datetime.now().isoformat()
@@ -126,7 +131,8 @@ class GenericImporter(object):
             logging.info('%i/%i uploading %s' % (k+1, total_count, params['filename']))
             if self.args.verbose:
                 logging.info('     renamed %s' % given_name)
-            success = self.post_video(params['camera'], params['timestamp'], params['key'], params['filename'])
+            latlng = (params['lat'], params['lng'])
+            success = self.post_video(params['camera'], params['timestamp'], params['filename'], latlng)
             if success:
                 logging.info('completed')
             else:
@@ -169,10 +175,19 @@ class GenericImporter(object):
                             help='location of the local storage db')
         self.parser.add_argument('-f', '--folder', default='data',
                             help='folder to process')
+        self.parser.add_argument('-d', '--device_id', default=None,
+                                 help='device_id')
+        self.parser.add_argument('-i', '--host', default='127.0.0.1',
+                                 help='the segmenter ip')
+        self.parser.add_argument('-p', '--port', default='8080',
+                                 help='the segmenter port number')
+        self.parser.add_argument('-m', '--hook_module', default=None,
+                                 help='hook module for custom functions')
         self.define_custom_args()
 
     def run(self):
         self.args = self.parser.parse_args()
+        self.module = __import__(self.args.hook_module)
         if self.args.csv:
             print self.listfiles(self.args.folder)
         else:
@@ -182,17 +197,23 @@ class GenericImporter(object):
         pass
         
     def register_camera(self, camera_name):
-        return '000000000'
+        host, port = self.args.host, self.args.port
+        return self.module.register_camera(camera_name, host, port)
 
     def assign_job_ids(self, db, unscheduled):
+        if 'assign_job_ids' in dir(self.module):
+            return self.module.assign_job_ids(self, db, unscheduled)
         return
 
     def register_jobs(self, db, jobs):
+        if 'register_jobs' in dir(self.module):
+            return self.module.register_jobs(self, db, jobs)
         return
 
-    def post_video(self, camera, timestamp, key, filename):
-        logging.info('posting video %s for camera=%s @ %s' % (filename, camera, timestamp))
-        return
+    def post_video(self, camera_name, timestamp, filepath, latlng):
+        host, port = self.args.host, self.args.port
+        camera_id = self.cameras[camera_name]
+        return self.module.post_video_content(host, port, camera_name, camera_id, latlng, filepath, timestamp, latlng)
 
 if __name__=='__main__':
     GenericImporter().run()

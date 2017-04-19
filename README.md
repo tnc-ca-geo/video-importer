@@ -17,3 +17,30 @@ start with the on-shore processing of hard drives filled with recorded video.
 The importer makes it fast and simple to create labeled video bookmarks automatically so that the EM's own review tools and processes can
 jump to the relevant video segments rather than wade through hours of video. For example, the reviewer can jump directly to events in
 which tuna or marlin was brought on board as in [this demo](https://www.youtube.com/watch?v=0BUWRHd_jss&feature=youtu.be)
+
+
+--------
+
+## Video Import Script
+
+```sh
+usage: importer.py [-h] [-v] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER]
+                   [-d DEVICE_ID] [-i HOST] [-p PORT] [-m HOOK_MODULE]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --verbose         log more info
+  -r REGEX, --regex REGEX
+                        regex to find camera name
+  -c, --csv             dump csv log file
+  -s STORAGE, --storage STORAGE
+                        location of the local storage db
+  -f FOLDER, --folder FOLDER
+                        folder to process
+  -d DEVICE_ID, --device_id DEVICE_ID
+                        device_id
+  -i HOST, --host HOST  the segmenter ip
+  -p PORT, --port PORT  the segmenter port number
+  -m HOOK_MODULE, --hook_module HOOK_MODULE
+                        hook module for custom functions
+```
