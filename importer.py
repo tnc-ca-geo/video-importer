@@ -1,4 +1,5 @@
 import argparse
+import time
 import shelve
 import psutil
 import os
@@ -9,6 +10,8 @@ import csv
 import StringIO
 import re
 import logging
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 import requests
 
@@ -23,9 +26,11 @@ class GenericImporter(object):
             if match:
                 try:
                     camera = match.group('camera')
+                    print 'camera_name:', camera
                 except: pass
                 try:
                     epoch = int(match.group('epoch'))
+                    print 'epoch:', epoch
                 except: pass
                 try:
                     lat = float(match.group('lat'))                    
@@ -34,9 +39,11 @@ class GenericImporter(object):
                     lng = float(match.group('lng'))
                 except: pass
         if not camera:
+            print 'did not detect camera name, assuming "default"'
             camera = "default"
         if not epoch:
             epoch = os.path.getctime(path)        
+            print 'did not detect epoch, assuming "%s"' % epoch
         timestamp = datetime.datetime.fromtimestamp(epoch).isoformat()
         # in case the epoch does nt have milliseconds
         if len(timestamp)==19: timestamp = timestamp+'.000'
@@ -97,7 +104,7 @@ class GenericImporter(object):
             given_name = params['camera']+'.'+params['timestamp']+'.'+key+'.mp4'
             if key in scheduled:
                 logging.info('%s (duplicate)' % filename)
-            elif key in db and db[key]['uploaded_on']:
+            elif key in db and db[key]['uploaded_on'] is not None:
                 logging.info('%s (uploaded)' % filename)
             else:
                 logging.info('%s (scheduled for upload)' % filename)
@@ -112,6 +119,8 @@ class GenericImporter(object):
                     params['discovered_on'] = discovered_on
                     params['uploaded_on'] = None
                     params['confirmed_on'] = None
+                    params['job_id'] = None
+                    params['shard_id'] = None
                     params['size'] = os.path.getsize(params['filename'])
                     db[key] = params
                     db.sync()
@@ -121,8 +130,11 @@ class GenericImporter(object):
 
         for camera_name in self.cameras:
             camera_id = self.register_camera(camera_name)
+            print "Camera ID: %r" % camera_id
             self.cameras[camera_name] = camera_id
 
+        # let the camera registration info prop. to Box and let Box kick off the webserver
+        time.sleep(1)
         self.assign_job_ids(db, unscheduled)
 
         total_count = len(unprocessed)
@@ -132,6 +144,7 @@ class GenericImporter(object):
             if self.args.verbose:
                 logging.info('     renamed %s' % given_name)
             latlng = (params['lat'], params['lng'])
+            print "Params: %r" % params
             success = self.post_video(params['camera'], params['timestamp'], params['filename'], latlng)
             if success:
                 logging.info('completed')
@@ -140,7 +153,7 @@ class GenericImporter(object):
                 break
             params['uploaded_on'] = self.now()
             jobs.add((params['job_id'], params['shard_id']))
-            db[key] = params
+            db[params['key']] = params
             db.sync()
 
         self.register_jobs(db, jobs)
@@ -187,6 +200,8 @@ class GenericImporter(object):
 
     def run(self):
         self.args = self.parser.parse_args()
+        print "hooks module: %r" % self.args.hook_module
+        print "cwd: %r" % os.getcwd()
         self.module = __import__(self.args.hook_module)
         if self.args.csv:
             print self.listfiles(self.args.folder)
@@ -198,14 +213,17 @@ class GenericImporter(object):
         
     def register_camera(self, camera_name):
         host, port = self.args.host, self.args.port
-        return self.module.register_camera(camera_name, host, port)
+        device_id = self.args.device_id
+        return self.module.register_camera(camera_name, device_id, host, port)
 
     def assign_job_ids(self, db, unscheduled):
+        return
         if 'assign_job_ids' in dir(self.module):
             return self.module.assign_job_ids(self, db, unscheduled)
         return
 
     def register_jobs(self, db, jobs):
+        return
         if 'register_jobs' in dir(self.module):
             return self.module.register_jobs(self, db, jobs)
         return
@@ -213,7 +231,7 @@ class GenericImporter(object):
     def post_video(self, camera_name, timestamp, filepath, latlng):
         host, port = self.args.host, self.args.port
         camera_id = self.cameras[camera_name]
-        return self.module.post_video_content(host, port, camera_name, camera_id, latlng, filepath, timestamp, latlng)
+        return self.module.post_video_content(host, port, camera_name, camera_id, filepath, timestamp, latlng)
 
 if __name__=='__main__':
     GenericImporter().run()
