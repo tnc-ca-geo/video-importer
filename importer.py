@@ -188,8 +188,6 @@ class GenericImporter(object):
                             help='location of the local storage db')
         self.parser.add_argument('-f', '--folder', default='data',
                             help='folder to process')
-        self.parser.add_argument('-d', '--device_id', default=None,
-                                 help='device_id')
         self.parser.add_argument('-i', '--host', default='127.0.0.1',
                                  help='the segmenter ip')
         self.parser.add_argument('-p', '--port', default='8080',
@@ -213,8 +211,7 @@ class GenericImporter(object):
         
     def register_camera(self, camera_name):
         host, port = self.args.host, self.args.port
-        device_id = self.args.device_id
-        return self.module.register_camera(camera_name, device_id, host, port)
+        return self.module.register_camera(camera_name, host, port)
 
     def assign_job_ids(self, db, unscheduled):
         return
