@@ -1,16 +1,18 @@
-## video-importer
+video-importer
+==============
+
 Traverses directories to import video as segmented events with correct timestamps and metadata. 
 For background, see the [Product Requirements Document](https://docs.google.com/document/d/1TTkzQqDA9KoKL5RvhYVJqtrcXoDJuwyFnCnorg_VM30/edit?usp=sharing).
 
-### What is it
+## What is it
 The importer is an Open Source project to automate the ingestion of video files so that they can be labeled by advanced classifiers
 running either locally or in the cloud.
 
-### Who is it for
+## Who is it for
 The Importer is for all Electronic Monitoring (EM) services that record video for fisheries observation to report scientific and
 regulatory data quickly.
 
-### Why is it needed
+## Why is it needed
 The review and labeling of recorded video is slow. In fact, the elapsed time to review is often longer than the fishing trip's duration.
 Until boats at-sea have the compute power and bandwidth sufficient to analyze, extract and upload data in real-time, the video review must
 start with the on-shore processing of hard drives filled with recorded video. 
@@ -22,7 +24,7 @@ which tuna or marlin was brought on board as in [this demo](https://www.youtube.
 
 --------
 
-## Video Import Script
+## Running the Importer
 
 ```sh
 usage: importer.py [-h] [-v] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER]
