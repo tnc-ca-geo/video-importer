@@ -159,7 +159,7 @@ class GenericImporter(object):
         self.register_jobs(db, jobs)
         db.close()
 
-    def listfiles(self, path):
+    def list_files(self, path):
         storage = self.args.storage
         shelve_name = os.path.join(os.path.dirname(__file__), storage)
         db = shelve.open(shelve_name)
@@ -202,7 +202,7 @@ class GenericImporter(object):
         print "cwd: %r" % os.getcwd()
         self.module = __import__(self.args.hook_module)
         if self.args.csv:
-            print self.listfiles(self.args.folder)
+            print self.list_files(self.args.folder)
         else:
             self.upload_folder(self.args.folder)
 
