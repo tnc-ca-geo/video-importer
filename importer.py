@@ -1,6 +1,7 @@
 import argparse
 import time
 import shelve
+import imp
 import psutil
 import os
 import sys
@@ -193,14 +194,14 @@ class GenericImporter(object):
         self.parser.add_argument('-p', '--port', default='8080',
                                  help='the segmenter port number')
         self.parser.add_argument('-m', '--hook_module', default=None,
-                                 help='hook module for custom functions')
+                                 help='full path to hook module for custom functions (a python file)')
         self.define_custom_args()
 
     def run(self):
         self.args = self.parser.parse_args()
         print "hooks module: %r" % self.args.hook_module
         print "cwd: %r" % os.getcwd()
-        self.module = __import__(self.args.hook_module)
+        self.module = imp.load_source('hooks_module', self.args.hook_module)
         if self.args.csv:
             print self.list_files(self.args.folder)
         else:
