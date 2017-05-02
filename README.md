@@ -23,10 +23,19 @@ which tuna or marlin was brought on board as in [this demo](https://www.youtube.
 
 
 --------
+--------
 
 ## Running the Importer
 
+To get a simple overview of importer and how to use it, try running this from a shell:
+
 ```sh
+python importer.py --help
+```
+
+Which will output:
+
+```man
 usage: importer.py [-h] [-v] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER]
                    [-i HOST] [-p PORT] [-m HOOK_MODULE]
 
@@ -82,10 +91,10 @@ the second capture group assigns the value `14759753350` to the `epoch` variable
 ### Hook Module
 
 The video-importer is designed to work with any service that can ingest video for event segmentation and labeling. 
-The hooks-module specifies a python module with the exact functions used to interact with the desired services:
+The hooks-module specifies a python module with these functions used to interact with the desired services:
 
-1. register_camera
-2. post_video_content
+1. `register_camera` - Informs the service about a new camera that has been found
+2. `post_video_content` - Sends the video data to the segmenter via a POST
 
 
 #### Camera Registration Function
