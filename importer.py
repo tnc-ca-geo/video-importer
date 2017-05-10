@@ -215,13 +215,11 @@ class GenericImporter(object):
         return self.module.register_camera(camera_name, host, port)
 
     def assign_job_ids(self, db, unscheduled):
-        return
         if 'assign_job_ids' in dir(self.module):
             return self.module.assign_job_ids(self, db, unscheduled)
         return
 
     def register_jobs(self, db, jobs):
-        return
         if 'register_jobs' in dir(self.module):
             return self.module.register_jobs(self, db, jobs)
         return
