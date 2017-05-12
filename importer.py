@@ -19,6 +19,8 @@ import requests
 
 re_notascii = re.compile('\W')
 
+DEFAULT_CAMERA_NAME = 'unnamed' # used if we can't parse a camera name from video file names
+
 class GenericImporter(object):
     
     def get_params(self, path):
@@ -41,8 +43,8 @@ class GenericImporter(object):
                     lng = float(match.group('lng'))
                 except: pass
         if not camera:
-            logging.warn('did not detect camera name, assuming "default"')
-            camera = "default"
+            logging.warn('did not detect camera name, assuming "unnamed"')
+            camera = DEFAULT_CAMERA_NAME
         if not epoch:
             epoch = os.path.getctime(path)        
             logging.warn('did not detect epoch, assuming "%s"', epoch)

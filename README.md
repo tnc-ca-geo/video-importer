@@ -54,7 +54,7 @@ optional arguments:
                         full path to hook module for custom functions (a
                         python file)
   -d HOOK_DATA_JSON, --hook_data_json HOOK_DATA_JSON
-                        a json-dictionary containing extra information to be
+                        a json object containing extra information to be
                         passed to the hook-module
   -v, --verbose         set logging level to debug
   -q, --quiet           set logging level to errors only
@@ -159,7 +159,7 @@ def post_video_content(host, port, camera_name, camera_id, filepath, timestamp, 
 
 #### Set Hook Data Function
 
-Sometimes there is extra data that the hook-module needs from the user but is not explicitely defined in the importer arguments,
+Sometimes there is extra data that the hook-module needs from the user but is not explicitly defined in the importer arguments,
 you can pass this data in using the `--hook_data_json` argument. Simple give something like 
 
 ```
