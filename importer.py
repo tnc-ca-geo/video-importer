@@ -131,7 +131,7 @@ class GenericImporter(object):
                     params = db[key]
                 else:
                     params['filename'] = filename
-                    params['duration'] = get_duration(filename)
+                    params['duration'] = get_duration(filename) or 0
                     params['key'] = key
                     params['given_name'] = given_name
                     params['discovered_on'] = discovered_on
