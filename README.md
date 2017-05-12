@@ -116,15 +116,22 @@ An example of this function interacting with a service can be found in the [cami
 def register_camera(camera_name, host=None, port=None):
     """
     arguments:
-        camera_name   - the name of the camera (as parsed from the filename) 
-        host          - the URI/IP address of the segmenter being used #TODO(carter) should be server with path?
+        camera_name   - the name of the camera (as parsed from the filename)
+        host          - the URI/IP address of the segmenter being used
         port          - the port to access the webserver of the segmenter
-    returns: this function returns the Camio-specific camera ID.
-                 
-    description: this function is called when a new camera is found by the video-importer.
-                 If a camera needs to be registered with a service before content from that
-                 camera can be segmented/labeled, then put the code for registering the
-                 camera inside this function. If not then return your own unique ID (even if just the camera name)
+    returns: this function returns a dctionary describing the new camera, including the camera ID
+             note - it is required that there is at least one property in this dictionary called
+             'camera_id', that is the unique ID of the camera as determined by the service this
+             function is registering the camera with.
+
+    description: this function is called when a new camera is found by the import script,
+                 if a camera needs to be registered with a service before content from that
+                 camera can be segmented then the logic for registering the camera should
+                 exist in this function.
+                 For Camio, this function POSTs to /api/cameras/discovered with the new camera
+                 entry. It is required that the "acquisition_method": "batch" set in the camera
+                 config for it to be known as a batch-import source as opposed to a real-time
+                 input source.
     """
 ```
 

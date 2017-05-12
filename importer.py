@@ -154,10 +154,15 @@ class GenericImporter(object):
             camera_config = self.register_camera(camera_name)
             camera_id = camera_config.get('camera_id')
             if not camera_id:
-                Log.error("unable to properly register camera with service (no unique camera ID returned)")
+                logging.error("unable to properly register camera with service (no unique camera ID returned)")
                 #@TODO - what to do here? Keep going on a best-effort basis, fail fast and early?
             logging.debug("Camera ID: %r", camera_id)
             self.cameras[camera_name] = camera_config
+
+        if hasattr(self.module, 'set_hook_data'):
+            # now we know all of the camera configuration data, give it to the hook module in case they need it
+            logging.debug("setting camera config data in hook module for cameras: %r", [name for name in self.cameras])
+            self.module.set_hook_data(dict(cameras=[self.cameras[name] for name in self.cameras]))
 
         # let the camera registration info prop. to Box and let Box kick off the webserver
         time.sleep(1)
@@ -238,9 +243,9 @@ class GenericImporter(object):
         self.module = imp.load_source('hooks_module', self.args.hook_module)
         # ensure all required callback functions exist
         for hook_callback in REQUIRED_MODULE_CALLBACK_FUNCTIONS:
-            if not hasattr(self.module, 'regiter_camera'):
-                Log.error("hooks-module (%s) is missing required function: %s", self.args.hook_module, hook_callback)
-                Log.error("see README.md for information on required hook callback functions")
+            if not hasattr(self.module, hook_callback):
+                logging.error("hooks-module (%s) is missing required function: %s", self.args.hook_module, hook_callback)
+                logging.error("see README.md for information on required hook callback functions")
                 sys.exit(1)
         if hasattr(self.module, 'set_hook_data'):
             hook_data = dict(logger=logging)
