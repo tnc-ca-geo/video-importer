@@ -34,17 +34,17 @@ optional arguments:
   -h, --help            show this help message and exit
   -v, --verbose         log more info
   -r REGEX, --regex REGEX
-                        regex to find camera name and timestamp
+                        regex to find camera name
   -c, --csv             dump csv log file
   -s STORAGE, --storage STORAGE
                         location of the local storage db
   -f FOLDER, --folder FOLDER
-                        folder (directory) to process
-  -i HOST, --host HOST  the segmenter's IP address
-  -p PORT, --port PORT  the segmenter's port number
+                        folder to process
+  -i HOST, --host HOST  the segmenter ip
+  -p PORT, --port PORT  the segmenter port number
   -m HOOK_MODULE, --hook_module HOOK_MODULE
-                        hook module for custom functions
-
+                        full path to hook module for custom functions (a
+                        python file)
 ```
 
 The video-importer will traverse a directory to extract the camera-name and video-timestamp from the video filenames,
@@ -112,7 +112,6 @@ def register_camera(camera_name, host=None, port=None):
                  camera can be segmented/labeled, then put the code for registering the
                  camera inside this function. If not then return your own unique ID (even if just the camera name)
     """
-    pass  #TODO(carter) should the default be return camera_name?
 ```
 
 #### POST Video Content Function
@@ -125,7 +124,6 @@ the chosen segmentation service, and pass the video along.
 
 
 ```python
-#TODO(carter) change latlng to location so that we accomodate a variety of ways to specify location and accuracy.
 def post_video_content(host, port, camera_name, camera_id, filepath, timestamp, latlng=None):
     """
     arguments:
@@ -135,7 +133,7 @@ def post_video_content(host, port, camera_name, camera_id, filepath, timestamp, 
         camera_id   - the ID of the camera as returned from the register_camera function
         filepath    - full path to the video file that needs segmentation
         timestamp   - the earliest timestamp contained in the video file
-        latlng (opt) - the lat/long of the camera (as parsed from the filename)
+        location (opt) - a string describing the location of the camera (example lat-long)
     returns: true/false based on success
     
     description: this function is called each time the importer finds a video for a specific camera. 
