@@ -24,19 +24,19 @@ except:
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
+re_notascii = re.compile('\W')
+
+DEFAULT_CAMERA_NAME = 'unnamed' # used if we can't parse a camera name from video file names
+REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
 
 def get_duration(filename):
     duration = None
     if HAVE_HACHOIR:
-        filename = unicode(filename, "utf=8")
+        filename = unicode(filename, "utf-8")
         parser = createParser(filename)
         metadata = extractMetadata(parser, quality=1.0)
         duration = metadata.getValues('duration')[0].total_seconds()
     return duration
-
-re_notascii = re.compile('\W')
-
-DEFAULT_CAMERA_NAME = 'unnamed' # used if we can't parse a camera name from video file names
 
 class GenericImporter(object):
     
@@ -151,13 +151,18 @@ class GenericImporter(object):
                     unscheduled.append(params)
 
         for camera_name in self.cameras:
-            camera_id = self.register_camera(camera_name)
+            camera_config = self.register_camera(camera_name)
+            camera_id = camera_config.get('camera_id')
+            if not camera_id:
+                Log.error("unable to properly register camera with service (no unique camera ID returned)")
+                #@TODO - what to do here? Keep going on a best-effort basis, fail fast and early?
             logging.debug("Camera ID: %r", camera_id)
-            self.cameras[camera_name] = camera_id
+            self.cameras[camera_name] = camera_config
 
         # let the camera registration info prop. to Box and let Box kick off the webserver
         time.sleep(1)
-        self.assign_job_ids(db, unscheduled)
+        if hasattr(self.module, 'assign_job_ids'):
+            self.assign_job_ids(db, unscheduled)
 
         total_count = len(unprocessed)
         jobs = set()
@@ -178,9 +183,10 @@ class GenericImporter(object):
             db[params['key']] = params
             db.sync()
 
-        ret = self.register_jobs(db, jobs)
-        if not ret:
-            logging.error("not able to register jobs")
+        if hasattr(self.module, 'register_jobs'):
+            ret = self.register_jobs(db, jobs)
+            if not ret:
+                logging.error("not able to register jobs")
         db.close()
 
     def list_files(self, path):
@@ -222,7 +228,7 @@ class GenericImporter(object):
         self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
         self.define_custom_args()
 
-    def run(self):
+    def init_args(self):
         self.args = self.parser.parse_args()
         if self.args.verbose:
             logging.getLogger().setLevel(logging.DEBUG)
@@ -230,10 +236,20 @@ class GenericImporter(object):
             logging.getLogger().setLevel(logging.ERROR)
         logging.info("submitted hooks module: %r", self.args.hook_module)
         self.module = imp.load_source('hooks_module', self.args.hook_module)
-        hook_data = dict(logger=logging)
-        if self.args.hook_data_json:
-            hook_data.update(json.loads(self.args.hook_data_json))
-        self.module.set_hook_data(hook_data)
+        # ensure all required callback functions exist
+        for hook_callback in REQUIRED_MODULE_CALLBACK_FUNCTIONS:
+            if not hasattr(self.module, 'regiter_camera'):
+                Log.error("hooks-module (%s) is missing required function: %s", self.args.hook_module, hook_callback)
+                Log.error("see README.md for information on required hook callback functions")
+                sys.exit(1)
+        if hasattr(self.module, 'set_hook_data'):
+            hook_data = dict(logger=logging)
+            if self.args.hook_data_json:
+                hook_data.update(json.loads(self.args.hook_data_json))
+            self.module.set_hook_data(hook_data)
+
+    def run(self):
+        self.init_args()
         if self.args.csv:
             logging.info(self.list_files(self.args.folder))
         else:
@@ -266,7 +282,7 @@ class GenericImporter(object):
 
     def post_video(self, camera_name, timestamp, filepath, latlng):
         host, port = self.args.host, self.args.port
-        camera_id = self.cameras[camera_name]
+        camera_id = self.cameras[camera_name].get('camera_id')
         return self.module.post_video_content(host, port, camera_name, camera_id, filepath, timestamp, latlng)
 
 if __name__=='__main__':
