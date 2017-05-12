@@ -40,8 +40,8 @@ def get_duration(filename):
             duration = metadata.getValues('duration')[0].total_seconds()
         return duration
     except:
-        Log.error("error while getting duration meta-data from movie (%s)", filename)
-        Log.error(traceback.format_exc())
+        logging.error("error while getting duration meta-data from movie (%s)", filename)
+        logging.error(traceback.format_exc())
         return None
 
 class GenericImporter(object):
@@ -125,6 +125,7 @@ class GenericImporter(object):
         unscheduled = []
         scheduled = set()
         discovered_on = self.now()
+        found_new = False
         for filename in self.folder_walker(path):        
             params = self.get_params(filename)
             key = self.hashfile(filename)
@@ -135,6 +136,7 @@ class GenericImporter(object):
                 logging.info('%s (uploaded)' % filename)
             else:
                 logging.info('%s (scheduled for upload)' % filename)
+                found_new = True # if we reach this point we found a new file
                 self.cameras[params['camera']] = None
                 scheduled.add(key)
                 if key in db:
@@ -155,6 +157,10 @@ class GenericImporter(object):
                 unprocessed.append(params)
                 if not params.get('job_id'):
                     unscheduled.append(params)
+
+        if not found_new:
+            logging.info("no new files found to upload, exiting..")
+            sys.exit(0)
 
         for camera_name in self.cameras:
             camera_config = self.register_camera(camera_name)
@@ -254,7 +260,7 @@ class GenericImporter(object):
                 logging.error("see README.md for information on required hook callback functions")
                 sys.exit(1)
         if hasattr(self.module, 'set_hook_data'):
-            hook_data = dict(logger=logging)
+            hook_data = dict(logger=logging.getLogger())
             if self.args.hook_data_json:
                 hook_data.update(json.loads(self.args.hook_data_json))
             self.module.set_hook_data(hook_data)
