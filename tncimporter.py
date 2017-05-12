@@ -196,22 +196,30 @@ class GenericImporter(object):
     
     def __init__(self):
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument('-v', '--verbose', action='store_true', default=False,
-                            help='log more info')
-        self.parser.add_argument('-r', '--regex', default='.*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*',
-                            help='regex to find camera name')
-        self.parser.add_argument('-c', '--csv', action='store_true', default=False,
-                            help='dump csv log file')
-        self.parser.add_argument('-s', '--storage', default='.processes.shelve',
-                            help='location of the local storage db')
-        self.parser.add_argument('-f', '--folder', default='data',
-                            help='folder to process')
-        self.parser.add_argument('-i', '--host', default='127.0.0.1',
-                                 help='the segmenter ip')
-        self.parser.add_argument('-p', '--port', default='8080',
-                                 help='the segmenter port number')
-        self.parser.add_argument('-m', '--hook_module', default=None,
-                                 help='full path to hook module for custom functions (a python file)')
+        self.parser.add_argument(
+            '-v', '--verbose', action='store_true', default=False,
+            help='log more info')
+        self.parser.add_argument(
+            '-r', '--regex', default='.*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*',
+            help='regex to find camera name')
+        self.parser.add_argument(
+            '-c', '--csv', action='store_true', default=False,
+            help='dump csv log file')
+        self.parser.add_argument(
+            '-s', '--storage', default='.processes.shelve',
+            help='location of the local storage db')
+        self.parser.add_argument(
+            '-f', '--folder', default='data',
+            help='folder to process')
+        self.parser.add_argument(
+            '-i', '--host', default='127.0.0.1',
+            help='the segmenter ip')
+        self.parser.add_argument(
+            '-p', '--port', default='8080',
+            help='the segmenter port number')
+        self.parser.add_argument(
+            '-m', '--hook_module', default=None, required=True,
+            help='full path to hook module for custom functions (a python file)')
         self.define_custom_args()
 
     def run(self):
@@ -248,5 +256,8 @@ class GenericImporter(object):
         camera_id = self.cameras[camera_name]
         return self.module.post_video_content(host, port, camera_name, camera_id, filepath, timestamp, latlng)
 
-if __name__=='__main__':
+def main():
     GenericImporter().run()
+
+if __name__=='__main__':
+    main()

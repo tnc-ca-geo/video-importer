@@ -24,10 +24,19 @@ which tuna or marlin was brought on board as in [this demo](https://www.youtube.
 
 --------
 
+## Installing the importer
+
+```
+git clone https://github.com/tnc-ca-geo/video-importer.git
+cd video-importer
+python setup.py install
+```
+
+
 ## Running the Importer
 
 ```sh
-usage: importer.py [-h] [-v] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER]
+usage: tncimporter [-h] [-v] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER]
                    [-i HOST] [-p PORT] [-m HOOK_MODULE]
 
 optional arguments:
