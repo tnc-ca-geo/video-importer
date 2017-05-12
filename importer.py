@@ -144,7 +144,7 @@ class GenericImporter(object):
         for k, params in enumerate(unprocessed):
             logging.info('%i/%i uploading %s' % (k+1, total_count, params['filename']))
             if self.args.verbose:
-                logging.info('     renamed %s' % given_name)
+                logging.info('input-file %s has been renamed %s', params['filename'], given_name)
             latlng = (params['lat'], params['lng'])
             logging.debug("Params: %r", params)
             success = self.post_video(params['camera'], params['timestamp'], params['filename'], latlng)
@@ -187,7 +187,7 @@ class GenericImporter(object):
         self.parser.add_argument('-s', '--storage', default='.processes.shelve',
                             help='location of the local storage db')
         self.parser.add_argument('-f', '--folder', default='data',
-                            help='folder to process')
+                            help='full path to folder of videos to process')
         self.parser.add_argument('-i', '--host', default='127.0.0.1',
                                  help='the segmenter ip')
         self.parser.add_argument('-p', '--port', default='8080',
@@ -207,7 +207,6 @@ class GenericImporter(object):
         elif self.args.quiet:
             logging.getLogger().setLevel(logging.ERROR)
         logging.info("submitted hooks module: %r", self.args.hook_module)
-        logging.debug("cwd: %r" % os.getcwd())
         self.module = imp.load_source('hooks_module', self.args.hook_module)
         hook_data = dict(logger=logging)
         if self.args.hook_data_json:
