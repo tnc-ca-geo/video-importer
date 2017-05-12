@@ -126,6 +126,7 @@ class GenericImporter(object):
         scheduled = set()
         discovered_on = self.now()
         found_new = False
+        job_id = None
         for filename in self.folder_walker(path):        
             params = self.get_params(filename)
             key = self.hashfile(filename)
@@ -179,7 +180,7 @@ class GenericImporter(object):
         # let the camera registration info prop. to Box and let Box kick off the webserver
         time.sleep(1)
         if hasattr(self.module, 'assign_job_ids'):
-            self.assign_job_ids(db, unscheduled)
+            job_id = self.assign_job_ids(db, unscheduled)
 
         total_count = len(unprocessed)
         jobs = set()
@@ -205,6 +206,7 @@ class GenericImporter(object):
             if not ret:
                 logging.error("not able to register jobs")
         db.close()
+        return job_id
 
     def list_files(self, path):
         storage = self.args.storage
@@ -270,7 +272,7 @@ class GenericImporter(object):
         if self.args.csv:
             logging.info(self.list_files(self.args.folder))
         else:
-            self.upload_folder(self.args.folder)
+            return self.upload_folder(self.args.folder)
 
     def define_custom_args(self):
         """ 
@@ -303,4 +305,7 @@ class GenericImporter(object):
         return self.module.post_video_content(host, port, camera_name, camera_id, filepath, timestamp, latlng)
 
 if __name__=='__main__':
-    GenericImporter().run()
+    job_id = GenericImporter().run()
+    logging.info("finishing up...")
+    if job_id:
+        logging.info("Job ID: %s", job_id)
