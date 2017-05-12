@@ -13,7 +13,7 @@ import StringIO
 import re
 import logging
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 import requests
 
@@ -28,11 +28,11 @@ class GenericImporter(object):
             if match:
                 try:
                     camera = match.group('camera')
-                    print 'camera_name:', camera
+                    logging.info('camera_name: %s', camera)
                 except: pass
                 try:
                     epoch = int(match.group('epoch'))
-                    print 'epoch:', epoch
+                    logging.info('epoch: %s', epoch)
                 except: pass
                 try:
                     lat = float(match.group('lat'))                    
@@ -41,11 +41,11 @@ class GenericImporter(object):
                     lng = float(match.group('lng'))
                 except: pass
         if not camera:
-            print 'did not detect camera name, assuming "default"'
+            logging.warn('did not detect camera name, assuming "default"')
             camera = "default"
         if not epoch:
             epoch = os.path.getctime(path)        
-            print 'did not detect epoch, assuming "%s"' % epoch
+            logging.warn('did not detect epoch, assuming "%s"', epoch)
         timestamp = datetime.datetime.fromtimestamp(epoch).isoformat()
         # in case the epoch does nt have milliseconds
         if len(timestamp)==19: timestamp = timestamp+'.000'
@@ -132,7 +132,7 @@ class GenericImporter(object):
 
         for camera_name in self.cameras:
             camera_id = self.register_camera(camera_name)
-            print "Camera ID: %r" % camera_id
+            logging.debug("Camera ID: %r", camera_id)
             self.cameras[camera_name] = camera_id
 
         # let the camera registration info prop. to Box and let Box kick off the webserver
@@ -146,7 +146,7 @@ class GenericImporter(object):
             if self.args.verbose:
                 logging.info('     renamed %s' % given_name)
             latlng = (params['lat'], params['lng'])
-            print "Params: %r" % params
+            logging.debug("Params: %r", params)
             success = self.post_video(params['camera'], params['timestamp'], params['filename'], latlng)
             if success:
                 logging.info('completed')
@@ -180,8 +180,6 @@ class GenericImporter(object):
     
     def __init__(self):
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument('-v', '--verbose', action='store_true', default=False,
-                            help='log more info')
         self.parser.add_argument('-r', '--regex', default='.*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*',
                             help='regex to find camera name')
         self.parser.add_argument('-c', '--csv', action='store_true', default=False,
@@ -198,19 +196,27 @@ class GenericImporter(object):
                                  help='full path to hook module for custom functions (a python file)')
         self.parser.add_argument('-d', '--hook_data_json', default=None,
                                  help='a json-dictionary containing extra information to be passed to the hook-module')
+        self.parser.add_argument('-v', '--verbose', action='store_true', default=False, help='set logging level to debug')
+        self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
         self.define_custom_args()
 
     def run(self):
         self.args = self.parser.parse_args()
-        print "hooks module: %r" % self.args.hook_module
-        print "cwd: %r" % os.getcwd()
+        if self.args.verbose:
+            print "logging level setting to verbose"
+            logging.getLogger().setLevel(logging.DEBUG)
+        elif self.args.quiet:
+            print "logging level setting to quiet"
+            logging.getLogger().setLevel(logging.ERROR)
+        logging.info("submitted hooks module: %r", self.args.hook_module)
+        logging.debug("cwd: %r" % os.getcwd())
         self.module = imp.load_source('hooks_module', self.args.hook_module)
         hook_data = dict(logger=logging)
         if self.args.hook_data_json:
             hook_data.update(json.loads(self.args.hook_data_json))
         self.module.set_hook_data(hook_data)
         if self.args.csv:
-            print self.list_files(self.args.folder)
+            logging.info(self.list_files(self.args.folder))
         else:
             self.upload_folder(self.args.folder)
 
@@ -222,13 +228,13 @@ class GenericImporter(object):
         return self.module.register_camera(camera_name, host, port)
 
     def assign_job_ids(self, db, unscheduled):
-        print "assigning job id: %r" % unscheduled
+        logging.debug("assigning job id: %r", unscheduled)
         if 'assign_job_ids' in dir(self.module):
             return self.module.assign_job_ids(self, db, unscheduled)
         return
 
     def register_jobs(self, db, jobs):
-        print "registering jobs: %r" % jobs
+        logging.debug("registering jobs: %r", jobs)
         if 'register_jobs' in dir(self.module):
             return self.module.register_jobs(self, db, jobs)
         return

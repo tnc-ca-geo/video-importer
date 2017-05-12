@@ -27,12 +27,11 @@ which tuna or marlin was brought on board as in [this demo](https://www.youtube.
 ## Running the Importer
 
 ```sh
-usage: importer.py [-h] [-v] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER]
-                   [-i HOST] [-p PORT] [-m HOOK_MODULE] [-d HOOK_DATA_JSON]
+usage: importer.py [-h] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER] [-i HOST]
+                   [-p PORT] [-m HOOK_MODULE] [-d HOOK_DATA_JSON] [-v] [-q]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --verbose         log more info
   -r REGEX, --regex REGEX
                         regex to find camera name
   -c, --csv             dump csv log file
@@ -48,6 +47,8 @@ optional arguments:
   -d HOOK_DATA_JSON, --hook_data_json HOOK_DATA_JSON
                         a json-dictionary containing extra information to be
                         passed to the hook-module
+  -v, --verbose         set logging level to debug
+  -q, --quiet           set logging level to errors only
 ```
 
 The video-importer will traverse a directory to extract the camera-name and video-timestamp from the video filenames,
