@@ -166,7 +166,7 @@ you can pass this data in using the `--hook_data_json` argument. Simple give som
 python importer "... some arguments here..." --hook_data_json '{"camera_plan": "pro", "user_id": "AABBCCDD"}'
 ```
 
-And the json-dictionary that you define will be de-serialized into a python dictionary and passed to the `set_hook_data` function defined
+And the json object that you define will be de-serialized into a python dictionary and passed to the `set_hook_data` function defined
 in the hook-module you submit (should that function exist). This function looks like this:
 
 ```python
