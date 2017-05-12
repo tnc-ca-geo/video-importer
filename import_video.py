@@ -304,8 +304,11 @@ class GenericImporter(object):
         camera_id = self.cameras[camera_name].get('camera_id')
         return self.module.post_video_content(host, port, camera_name, camera_id, filepath, timestamp, latlng)
 
-if __name__=='__main__':
+def main():
     job_id = GenericImporter().run()
     logging.info("finishing up...")
     if job_id:
         logging.info("Job ID: %s", job_id)
+
+if __name__=='__main__':
+    main()

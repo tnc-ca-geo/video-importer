@@ -25,18 +25,27 @@ which tuna or marlin was brought on board as in [this demo](https://www.youtube.
 --------
 --------
 
+## Installing the importer
+
+```
+git clone https://github.com/tnc-ca-geo/video-importer.git
+cd video-importer
+python setup.py install
+```
+
+
 ## Running the Importer
 
 To get a simple overview of importer and how to use it, try running this from a shell:
 
 ```sh
-python importer.py --help
+python import_video.py --help
 ```
 
 Which will output:
 
 ```man
-usage: importer.py [-h] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER] [-i HOST]
+usage: import_video.py [-h] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER] [-i HOST]
                    [-p PORT] [-m HOOK_MODULE] [-d HOOK_DATA_JSON] [-v] [-q]
 
 optional arguments:
