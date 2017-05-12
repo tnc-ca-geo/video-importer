@@ -11,10 +11,26 @@ import csv
 import StringIO
 import re
 import logging
+import requests
+
+try:
+    from hachoir_core import config
+    from hachoir_parser import createParser
+    from hachoir_metadata import extractMetadata
+    HAVE_HACHOIR = True
+except:
+    HAVE_HACHOIR = False
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
-import requests
+
+def get_duration(filename):
+    duration = None
+    if HAVE_HACHOIR:
+        parser = createParser(filename)
+        metadata = extractMetadata(parser, quality=1.0)
+        duration = metadata.getValues('duration')[0].total_seconds()
+    return duration
 
 re_notascii = re.compile('\W')
 
@@ -115,6 +131,7 @@ class GenericImporter(object):
                     params = db[key]
                 else:
                     params['filename'] = filename
+                    params['duration'] = get_duration(filename)
                     params['key'] = key
                     params['given_name'] = given_name
                     params['discovered_on'] = discovered_on
