@@ -28,23 +28,26 @@ which tuna or marlin was brought on board as in [this demo](https://www.youtube.
 
 ```sh
 usage: importer.py [-h] [-v] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER]
-                   [-i HOST] [-p PORT] [-m HOOK_MODULE]
+                   [-i HOST] [-p PORT] [-m HOOK_MODULE] [-d HOOK_DATA_JSON]
 
 optional arguments:
   -h, --help            show this help message and exit
   -v, --verbose         log more info
   -r REGEX, --regex REGEX
-                        regex to find camera name and timestamp
+                        regex to find camera name
   -c, --csv             dump csv log file
   -s STORAGE, --storage STORAGE
                         location of the local storage db
   -f FOLDER, --folder FOLDER
-                        folder (directory) to process
-  -i HOST, --host HOST  the segmenter's IP address
-  -p PORT, --port PORT  the segmenter's port number
+                        folder to process
+  -i HOST, --host HOST  the segmenter ip
+  -p PORT, --port PORT  the segmenter port number
   -m HOOK_MODULE, --hook_module HOOK_MODULE
-                        hook module for custom functions
-
+                        full path to hook module for custom functions (a
+                        python file)
+  -d HOOK_DATA_JSON, --hook_data_json HOOK_DATA_JSON
+                        a json-dictionary containing extra information to be
+                        passed to the hook-module
 ```
 
 The video-importer will traverse a directory to extract the camera-name and video-timestamp from the video filenames,
@@ -84,8 +87,9 @@ the second capture group assigns the value `14759753350` to the `epoch` variable
 The video-importer is designed to work with any service that can ingest video for event segmentation and labeling. 
 The hooks-module specifies a python module with the exact functions used to interact with the desired services:
 
-1. register_camera
-2. post_video_content
+1. `register_camera`
+2. `post_video_content`
+3. `set_hook_data`
 
 
 #### Camera Registration Function
@@ -143,3 +147,28 @@ def post_video_content(host, port, camera_name, camera_id, filepath, timestamp, 
     """
     pass
 ```
+
+#### Set Hook Data Function
+
+Sometimes there is extra data that the hook-module needs from the user but is not explicitely defined in the importer arguments,
+you can pass this data in using the `--hook_data_json` argument. Simple give something like 
+
+```
+python importer "... some arguments here..." --hook_data_json '{"camera_plan": "pro", "user_id": "AABBCCDD"}'
+```
+
+And the json-dictionary that you define will be de-serialized into a python dictionary and passed to the `set_hook_data` function defined
+in the hook-module you submit (should that function exist). This function looks like this:
+
+```python
+def set_hook_data(data_dict):
+    """
+    arguments:
+        data_dict    - a python dictionary full of values passed in by the user in the `--hook_data_json` argument. Includes a reference
+                       to the logging object that is being used by the importer so that the hooks-module can log in a similar fashion
+    returns: nothing
+    """
+    pass
+```
+
+

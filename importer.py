@@ -2,6 +2,7 @@ import argparse
 import time
 import shelve
 import imp
+import json
 import psutil
 import os
 import sys
@@ -195,6 +196,8 @@ class GenericImporter(object):
                                  help='the segmenter port number')
         self.parser.add_argument('-m', '--hook_module', default=None,
                                  help='full path to hook module for custom functions (a python file)')
+        self.parser.add_argument('-d', '--hook_data_json', default=None,
+                                 help='a json-dictionary containing extra information to be passed to the hook-module')
         self.define_custom_args()
 
     def run(self):
@@ -202,6 +205,10 @@ class GenericImporter(object):
         print "hooks module: %r" % self.args.hook_module
         print "cwd: %r" % os.getcwd()
         self.module = imp.load_source('hooks_module', self.args.hook_module)
+        hook_data = dict(logger=logging)
+        if self.args.hook_data_json:
+            hook_data.update(json.loads(self.args.hook_data_json))
+        self.module.set_hook_data(hook_data)
         if self.args.csv:
             print self.list_files(self.args.folder)
         else:
@@ -215,11 +222,13 @@ class GenericImporter(object):
         return self.module.register_camera(camera_name, host, port)
 
     def assign_job_ids(self, db, unscheduled):
+        print "assigning job id: %r" % unscheduled
         if 'assign_job_ids' in dir(self.module):
             return self.module.assign_job_ids(self, db, unscheduled)
         return
 
     def register_jobs(self, db, jobs):
+        print "registering jobs: %r" % jobs
         if 'register_jobs' in dir(self.module):
             return self.module.register_jobs(self, db, jobs)
         return
