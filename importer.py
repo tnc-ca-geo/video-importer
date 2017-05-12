@@ -203,10 +203,8 @@ class GenericImporter(object):
     def run(self):
         self.args = self.parser.parse_args()
         if self.args.verbose:
-            print "logging level setting to verbose"
             logging.getLogger().setLevel(logging.DEBUG)
         elif self.args.quiet:
-            print "logging level setting to quiet"
             logging.getLogger().setLevel(logging.ERROR)
         logging.info("submitted hooks module: %r", self.args.hook_module)
         logging.debug("cwd: %r" % os.getcwd())
@@ -221,6 +219,12 @@ class GenericImporter(object):
             self.upload_folder(self.args.folder)
 
     def define_custom_args(self):
+        """ 
+        legacy stuff, doubt this will be used in the future. custom args are now
+        passed into the hooks module via the `--hook_data_json` argument, where the json
+        is deserialized and passed into the set_hook_data() function in the hooks module
+        @TODO - remove this and the call to it when you're sure it isn't being used anymore
+        """
         pass
         
     def register_camera(self, camera_name):
