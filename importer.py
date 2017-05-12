@@ -189,13 +189,13 @@ class GenericImporter(object):
         self.parser.add_argument('-f', '--folder', default='data',
                             help='full path to folder of videos to process')
         self.parser.add_argument('-i', '--host', default='127.0.0.1',
-                                 help='the segmenter ip')
+                                 help='the IP-address / hostname of the segmenter')
         self.parser.add_argument('-p', '--port', default='8080',
                                  help='the segmenter port number')
         self.parser.add_argument('-m', '--hook_module', default=None,
                                  help='full path to hook module for custom functions (a python file)')
         self.parser.add_argument('-d', '--hook_data_json', default=None,
-                                 help='a json-dictionary containing extra information to be passed to the hook-module')
+                                 help='a json object containing extra information to be passed to the hook-module')
         self.parser.add_argument('-v', '--verbose', action='store_true', default=False, help='set logging level to debug')
         self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
         self.define_custom_args()

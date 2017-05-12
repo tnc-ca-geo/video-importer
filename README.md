@@ -147,7 +147,8 @@ def post_video_content(host, port, camera_name, camera_id, filepath, timestamp, 
         camera_id   - the ID of the camera as returned from the register_camera function
         filepath    - full path to the video file that needs segmentation
         timestamp   - the earliest timestamp contained in the video file
-        location (opt) - a string describing the location of the camera (example lat-long)
+        location (opt) - a string describing the location of the camera. 
+                         example: {"location": {"lat": 7.367598, "lng":134.706975}, "accuracy":5.0}
     returns: true/false based on success
     
     description: this function is called each time the importer finds a video for a specific camera. 
