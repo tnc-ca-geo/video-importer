@@ -28,6 +28,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 def get_duration(filename):
     duration = None
     if HAVE_HACHOIR:
+        filename = unicode(filename, "utf=8")
         parser = createParser(filename)
         metadata = extractMetadata(parser, quality=1.0)
         duration = metadata.getValues('duration')[0].total_seconds()
@@ -177,7 +178,9 @@ class GenericImporter(object):
             db[params['key']] = params
             db.sync()
 
-        self.register_jobs(db, jobs)
+        ret = self.register_jobs(db, jobs)
+        if not ret:
+            logging.error("not able to register jobs")
         db.close()
 
     def list_files(self, path):
