@@ -11,6 +11,7 @@ import datetime
 import csv
 import StringIO
 import re
+import traceback
 import logging
 import requests
 
@@ -31,12 +32,17 @@ REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
 
 def get_duration(filename):
     duration = None
-    if HAVE_HACHOIR:
-        filename = unicode(filename, "utf-8")
-        parser = createParser(filename)
-        metadata = extractMetadata(parser, quality=1.0)
-        duration = metadata.getValues('duration')[0].total_seconds()
-    return duration
+    try:
+        if HAVE_HACHOIR:
+            filename = unicode(filename, "utf-8")
+            parser = createParser(filename)
+            metadata = extractMetadata(parser, quality=1.0)
+            duration = metadata.getValues('duration')[0].total_seconds()
+        return duration
+    except:
+        Log.error("error while getting duration meta-data from movie (%s)", filename)
+        Log.error(traceback.format_exc())
+        return None
 
 class GenericImporter(object):
     
