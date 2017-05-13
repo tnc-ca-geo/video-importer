@@ -23,6 +23,7 @@ which tuna or marlin was brought on board as in [this demo](https://www.youtube.
 
 
 --------
+--------
 
 ## Installing the importer
 
@@ -35,13 +36,20 @@ python setup.py install
 
 ## Running the Importer
 
+To get a simple overview of importer and how to use it, try running this from a shell:
+
 ```sh
-usage: tncimporter [-h] [-v] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER]
-                   [-i HOST] [-p PORT] [-m HOOK_MODULE]
+python import_video.py --help
+```
+
+Which will output:
+
+```man
+usage: import_video.py [-h] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER] [-i HOST]
+                   [-p PORT] [-m HOOK_MODULE] [-d HOOK_DATA_JSON] [-v] [-q]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --verbose         log more info
   -r REGEX, --regex REGEX
                         regex to find camera name
   -c, --csv             dump csv log file
@@ -54,6 +62,11 @@ optional arguments:
   -m HOOK_MODULE, --hook_module HOOK_MODULE
                         full path to hook module for custom functions (a
                         python file)
+  -d HOOK_DATA_JSON, --hook_data_json HOOK_DATA_JSON
+                        a json object containing extra information to be
+                        passed to the hook-module
+  -v, --verbose         set logging level to debug
+  -q, --quiet           set logging level to errors only
 ```
 
 The video-importer will traverse a directory to extract the camera-name and video-timestamp from the video filenames,
@@ -91,10 +104,11 @@ the second capture group assigns the value `14759753350` to the `epoch` variable
 ### Hook Module
 
 The video-importer is designed to work with any service that can ingest video for event segmentation and labeling. 
-The hooks-module specifies a python module with the exact functions used to interact with the desired services:
+The hooks-module specifies a python module with these functions used to interact with the desired services:
 
-1. register_camera
-2. post_video_content
+1. `register_camera` - Informs the service about a new camera that has been found
+2. `post_video_content` - Sends the video data to the segmenter via a POST
+3. `set_hook_data` - Sets hook-specific data (specific to auth, camera data, etc.)
 
 
 #### Camera Registration Function
@@ -111,15 +125,22 @@ An example of this function interacting with a service can be found in the [cami
 def register_camera(camera_name, host=None, port=None):
     """
     arguments:
-        camera_name   - the name of the camera (as parsed from the filename) 
-        host          - the URI/IP address of the segmenter being used #TODO(carter) should be server with path?
+        camera_name   - the name of the camera (as parsed from the filename)
+        host          - the URI/IP address of the segmenter being used
         port          - the port to access the webserver of the segmenter
-    returns: this function returns the Camio-specific camera ID.
-                 
-    description: this function is called when a new camera is found by the video-importer.
-                 If a camera needs to be registered with a service before content from that
-                 camera can be segmented/labeled, then put the code for registering the
-                 camera inside this function. If not then return your own unique ID (even if just the camera name)
+    returns: this function returns a dctionary describing the new camera, including the camera ID
+             note - it is required that there is at least one property in this dictionary called
+             'camera_id', that is the unique ID of the camera as determined by the service this
+             function is registering the camera with.
+
+    description: this function is called when a new camera is found by the import script,
+                 if a camera needs to be registered with a service before content from that
+                 camera can be segmented then the logic for registering the camera should
+                 exist in this function.
+                 For Camio, this function POSTs to /api/cameras/discovered with the new camera
+                 entry. It is required that the "acquisition_method": "batch" set in the camera
+                 config for it to be known as a batch-import source as opposed to a real-time
+                 input source.
     """
 ```
 
@@ -142,7 +163,8 @@ def post_video_content(host, port, camera_name, camera_id, filepath, timestamp, 
         camera_id   - the ID of the camera as returned from the register_camera function
         filepath    - full path to the video file that needs segmentation
         timestamp   - the earliest timestamp contained in the video file
-        location (opt) - a string describing the location of the camera (example lat-long)
+        location (opt) - a string describing the location of the camera. 
+                         example: {"location": {"lat": 7.367598, "lng":134.706975}, "accuracy":5.0}
     returns: true/false based on success
     
     description: this function is called each time the importer finds a video for a specific camera. 
@@ -150,3 +172,28 @@ def post_video_content(host, port, camera_name, camera_id, filepath, timestamp, 
     """
     pass
 ```
+
+#### Set Hook Data Function
+
+Sometimes there is extra data that the hook-module needs from the user but is not explicitly defined in the importer arguments,
+you can pass this data in using the `--hook_data_json` argument. Simple give something like 
+
+```
+python importer "... some arguments here..." --hook_data_json '{"camera_plan": "pro", "user_id": "AABBCCDD"}'
+```
+
+And the json object that you define will be de-serialized into a python dictionary and passed to the `set_hook_data` function defined
+in the hook-module you submit (should that function exist). This function looks like this:
+
+```python
+def set_hook_data(data_dict):
+    """
+    arguments:
+        data_dict    - a python dictionary full of values passed in by the user in the `--hook_data_json` argument. Includes a reference
+                       to the logging object that is being used by the importer so that the hooks-module can log in a similar fashion
+    returns: nothing
+    """
+    pass
+```
+
+

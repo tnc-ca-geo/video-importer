@@ -2,6 +2,7 @@ import argparse
 import time
 import shelve
 import imp
+import json
 import psutil
 import os
 import sys
@@ -10,6 +11,7 @@ import datetime
 import csv
 import StringIO
 import re
+import traceback
 import logging
 import requests
 
@@ -21,18 +23,26 @@ try:
 except:
     HAVE_HACHOIR = False
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
+re_notascii = re.compile('\W')
+
+DEFAULT_CAMERA_NAME = 'unnamed' # used if we can't parse a camera name from video file names
+REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
 
 def get_duration(filename):
     duration = None
-    if HAVE_HACHOIR:
-        parser = createParser(filename)
-        metadata = extractMetadata(parser, quality=1.0)
-        duration = metadata.getValues('duration')[0].total_seconds()
-    return duration
-
-re_notascii = re.compile('\W')
+    try:
+        if HAVE_HACHOIR:
+            filename = unicode(filename, "utf-8")
+            parser = createParser(filename)
+            metadata = extractMetadata(parser, quality=1.0)
+            duration = metadata.getValues('duration')[0].total_seconds()
+        return duration
+    except:
+        logging.error("error while getting duration meta-data from movie (%s)", filename)
+        logging.error(traceback.format_exc())
+        return None
 
 class GenericImporter(object):
     
@@ -43,11 +53,11 @@ class GenericImporter(object):
             if match:
                 try:
                     camera = match.group('camera')
-                    print 'camera_name:', camera
+                    logging.info('camera_name: %s', camera)
                 except: pass
                 try:
                     epoch = int(match.group('epoch'))
-                    print 'epoch:', epoch
+                    logging.info('epoch: %s', epoch)
                 except: pass
                 try:
                     lat = float(match.group('lat'))                    
@@ -56,11 +66,11 @@ class GenericImporter(object):
                     lng = float(match.group('lng'))
                 except: pass
         if not camera:
-            print 'did not detect camera name, assuming "default"'
-            camera = "default"
+            logging.warn('did not detect camera name, assuming "unnamed"')
+            camera = DEFAULT_CAMERA_NAME
         if not epoch:
             epoch = os.path.getctime(path)        
-            print 'did not detect epoch, assuming "%s"' % epoch
+            logging.warn('did not detect epoch, assuming "%s"', epoch)
         timestamp = datetime.datetime.fromtimestamp(epoch).isoformat()
         # in case the epoch does nt have milliseconds
         if len(timestamp)==19: timestamp = timestamp+'.000'
@@ -115,6 +125,8 @@ class GenericImporter(object):
         unscheduled = []
         scheduled = set()
         discovered_on = self.now()
+        found_new = False
+        job_id = None
         for filename in self.folder_walker(path):        
             params = self.get_params(filename)
             key = self.hashfile(filename)
@@ -125,6 +137,7 @@ class GenericImporter(object):
                 logging.info('%s (uploaded)' % filename)
             else:
                 logging.info('%s (scheduled for upload)' % filename)
+                found_new = True # if we reach this point we found a new file
                 self.cameras[params['camera']] = None
                 scheduled.add(key)
                 if key in db:
@@ -146,23 +159,37 @@ class GenericImporter(object):
                 if not params.get('job_id'):
                     unscheduled.append(params)
 
+        if not found_new:
+            logging.info("no new files found to upload, exiting..")
+            sys.exit(0)
+
         for camera_name in self.cameras:
-            camera_id = self.register_camera(camera_name)
-            print "Camera ID: %r" % camera_id
-            self.cameras[camera_name] = camera_id
+            camera_config = self.register_camera(camera_name)
+            camera_id = camera_config.get('camera_id')
+            if not camera_id:
+                logging.error("unable to properly register camera with service (no unique camera ID returned)")
+                #@TODO - what to do here? Keep going on a best-effort basis, fail fast and early?
+            logging.debug("Camera ID: %r", camera_id)
+            self.cameras[camera_name] = camera_config
+
+        if hasattr(self.module, 'set_hook_data'):
+            # now we know all of the camera configuration data, give it to the hook module in case they need it
+            logging.debug("setting camera config data in hook module for cameras: %r", [name for name in self.cameras])
+            self.module.set_hook_data(dict(cameras=[self.cameras[name] for name in self.cameras]))
 
         # let the camera registration info prop. to Box and let Box kick off the webserver
         time.sleep(1)
-        self.assign_job_ids(db, unscheduled)
+        if hasattr(self.module, 'assign_job_ids'):
+            job_id = self.assign_job_ids(db, unscheduled)
 
         total_count = len(unprocessed)
         jobs = set()
         for k, params in enumerate(unprocessed):
             logging.info('%i/%i uploading %s' % (k+1, total_count, params['filename']))
             if self.args.verbose:
-                logging.info('     renamed %s' % given_name)
+                logging.info('input-file %s has been renamed %s', params['filename'], given_name)
             latlng = (params['lat'], params['lng'])
-            print "Params: %r" % params
+            logging.debug("Params: %r", params)
             success = self.post_video(params['camera'], params['timestamp'], params['filename'], latlng)
             if success:
                 logging.info('completed')
@@ -174,8 +201,12 @@ class GenericImporter(object):
             db[params['key']] = params
             db.sync()
 
-        self.register_jobs(db, jobs)
+        if hasattr(self.module, 'register_jobs'):
+            ret = self.register_jobs(db, jobs)
+            if not ret:
+                logging.error("not able to register jobs")
         db.close()
+        return job_id
 
     def list_files(self, path):
         storage = self.args.storage
@@ -196,43 +227,60 @@ class GenericImporter(object):
     
     def __init__(self):
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument(
-            '-v', '--verbose', action='store_true', default=False,
-            help='log more info')
-        self.parser.add_argument(
-            '-r', '--regex', default='.*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*',
-            help='regex to find camera name')
-        self.parser.add_argument(
-            '-c', '--csv', action='store_true', default=False,
-            help='dump csv log file')
-        self.parser.add_argument(
-            '-s', '--storage', default='.processes.shelve',
-            help='location of the local storage db')
-        self.parser.add_argument(
-            '-f', '--folder', default='data',
-            help='folder to process')
-        self.parser.add_argument(
-            '-i', '--host', default='127.0.0.1',
-            help='the segmenter ip')
-        self.parser.add_argument(
-            '-p', '--port', default='8080',
-            help='the segmenter port number')
-        self.parser.add_argument(
-            '-m', '--hook_module', default=None, required=True,
-            help='full path to hook module for custom functions (a python file)')
+        self.parser.add_argument('-r', '--regex', default='.*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*',
+                            help='regex to find camera name')
+        self.parser.add_argument('-c', '--csv', action='store_true', default=False,
+                            help='dump csv log file')
+        self.parser.add_argument('-s', '--storage', default='.processes.shelve',
+                            help='location of the local storage db')
+        self.parser.add_argument('-f', '--folder', default='data',
+                            help='full path to folder of videos to process')
+        self.parser.add_argument('-i', '--host', default='127.0.0.1',
+                                 help='the IP-address / hostname of the segmenter')
+        self.parser.add_argument('-p', '--port', default='8080',
+                                 help='the segmenter port number')
+        self.parser.add_argument('-m', '--hook_module', default=None,
+                                 help='full path to hook module for custom functions (a python file)')
+        self.parser.add_argument('-d', '--hook_data_json', default=None,
+                                 help='a json object containing extra information to be passed to the hook-module')
+        self.parser.add_argument('-v', '--verbose', action='store_true', default=False, help='set logging level to debug')
+        self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
         self.define_custom_args()
 
-    def run(self):
+    def init_args(self):
         self.args = self.parser.parse_args()
-        print "hooks module: %r" % self.args.hook_module
-        print "cwd: %r" % os.getcwd()
+        if self.args.verbose:
+            logging.getLogger().setLevel(logging.DEBUG)
+        elif self.args.quiet:
+            logging.getLogger().setLevel(logging.ERROR)
+        logging.info("submitted hooks module: %r", self.args.hook_module)
         self.module = imp.load_source('hooks_module', self.args.hook_module)
+        # ensure all required callback functions exist
+        for hook_callback in REQUIRED_MODULE_CALLBACK_FUNCTIONS:
+            if not hasattr(self.module, hook_callback):
+                logging.error("hooks-module (%s) is missing required function: %s", self.args.hook_module, hook_callback)
+                logging.error("see README.md for information on required hook callback functions")
+                sys.exit(1)
+        if hasattr(self.module, 'set_hook_data'):
+            hook_data = dict(logger=logging.getLogger())
+            if self.args.hook_data_json:
+                hook_data.update(json.loads(self.args.hook_data_json))
+            self.module.set_hook_data(hook_data)
+
+    def run(self):
+        self.init_args()
         if self.args.csv:
-            print self.list_files(self.args.folder)
+            logging.info(self.list_files(self.args.folder))
         else:
-            self.upload_folder(self.args.folder)
+            return self.upload_folder(self.args.folder)
 
     def define_custom_args(self):
+        """ 
+        legacy stuff, doubt this will be used in the future. custom args are now
+        passed into the hooks module via the `--hook_data_json` argument, where the json
+        is deserialized and passed into the set_hook_data() function in the hooks module
+        @TODO - remove this and the call to it when you're sure it isn't being used anymore
+        """
         pass
         
     def register_camera(self, camera_name):
@@ -240,24 +288,27 @@ class GenericImporter(object):
         return self.module.register_camera(camera_name, host, port)
 
     def assign_job_ids(self, db, unscheduled):
-        return
+        logging.debug("assigning job id: %r", unscheduled)
         if 'assign_job_ids' in dir(self.module):
             return self.module.assign_job_ids(self, db, unscheduled)
         return
 
     def register_jobs(self, db, jobs):
-        return
+        logging.debug("registering jobs: %r", jobs)
         if 'register_jobs' in dir(self.module):
             return self.module.register_jobs(self, db, jobs)
         return
 
     def post_video(self, camera_name, timestamp, filepath, latlng):
         host, port = self.args.host, self.args.port
-        camera_id = self.cameras[camera_name]
+        camera_id = self.cameras[camera_name].get('camera_id')
         return self.module.post_video_content(host, port, camera_name, camera_id, filepath, timestamp, latlng)
 
 def main():
-    GenericImporter().run()
+    job_id = GenericImporter().run()
+    logging.info("finishing up...")
+    if job_id:
+        logging.info("Job ID: %s", job_id)
 
 if __name__=='__main__':
     main()
