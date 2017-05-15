@@ -27,9 +27,6 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 re_notascii = re.compile('\W')
 
-DEFAULT_CAMERA_NAME = 'unnamed' # used if we can't parse a camera name from video file names
-REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
-
 def get_duration(filename):
     duration = None
     try:
@@ -66,8 +63,8 @@ class GenericImporter(object):
                     lng = float(match.group('lng'))
                 except: pass
         if not camera:
-            logging.warn('did not detect camera name, assuming "unnamed"')
-            camera = DEFAULT_CAMERA_NAME
+            logging.warn('did not detect camera name, assuming "%s"', self.DEFAULT_CAMERA_NAME)
+            camera = self.DEFAULT_CAMERA_NAME
         if not epoch:
             epoch = os.path.getctime(path)        
             logging.warn('did not detect epoch, assuming "%s"', epoch)
@@ -226,25 +223,27 @@ class GenericImporter(object):
         return stream.getvalue()
     
     def __init__(self):
+        self.DEFAULT_CAMERA_NAME = 'unnamed' # used if we can't parse a camera name from video file names
+        self.REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
+        self.DEFAULT_FILE_REGEX = '.*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*'
+
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument('-r', '--regex', default='.*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*',
-                            help='regex to find camera name')
-        self.parser.add_argument('-c', '--csv', action='store_true', default=False,
-                            help='dump csv log file')
-        self.parser.add_argument('-s', '--storage', default='.processes.shelve',
-                            help='location of the local storage db')
-        self.parser.add_argument('-f', '--folder', default='data',
-                            help='full path to folder of videos to process')
-        self.parser.add_argument('-i', '--host', default='127.0.0.1',
-                                 help='the IP-address / hostname of the segmenter')
-        self.parser.add_argument('-p', '--port', default='8080',
-                                 help='the segmenter port number')
-        self.parser.add_argument('-m', '--hook_module', default=None,
-                                 help='full path to hook module for custom functions (a python file)')
-        self.parser.add_argument('-d', '--hook_data_json', default=None,
-                                 help='a json object containing extra information to be passed to the hook-module')
+        # optional arguments/flags
         self.parser.add_argument('-v', '--verbose', action='store_true', default=False, help='set logging level to debug')
         self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
+        self.parser.add_argument('-c', '--csv', action='store_true', default=False, help='dump csv log file')
+        self.parser.add_argument('-p', '--port', default='8080', help='the segmenter port number')
+        self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, 
+                                 help='regex to find camera name (Default="%s")' % self.DEFAULT_FILE_REGEX)
+        self.parser.add_argument('-s', '--storage', default='.processes.shelve',
+                                 help='location of the local storage db')
+        self.parser.add_argument('-d', '--hook_data_json', default=None,
+                                 help='a json object containing extra information to be passed to the hook-module')
+
+        # required, postitional arguments
+        self.parser.add_argument('folder', help='full path to folder of input videos to process')
+        self.parser.add_argument('hook_module', help='full path to hook module for custom functions (a python file)')
+        self.parser.add_argument('host', help='the IP-address / hostname of the segmenter')
         self.define_custom_args()
 
     def init_args(self):
@@ -256,7 +255,7 @@ class GenericImporter(object):
         logging.info("submitted hooks module: %r", self.args.hook_module)
         self.module = imp.load_source('hooks_module', self.args.hook_module)
         # ensure all required callback functions exist
-        for hook_callback in REQUIRED_MODULE_CALLBACK_FUNCTIONS:
+        for hook_callback in self.REQUIRED_MODULE_CALLBACK_FUNCTIONS:
             if not hasattr(self.module, hook_callback):
                 logging.error("hooks-module (%s) is missing required function: %s", self.args.hook_module, hook_callback)
                 logging.error("see README.md for information on required hook callback functions")

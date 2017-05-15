@@ -45,28 +45,30 @@ python import_video.py --help
 Which will output:
 
 ```man
-usage: import_video.py [-h] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER] [-i HOST]
-                   [-p PORT] [-m HOOK_MODULE] [-d HOOK_DATA_JSON] [-v] [-q]
+usage: import_video.py [-h] [-v] [-q] [-c] [-p PORT] [-r REGEX] [-s STORAGE]
+                       [-d HOOK_DATA_JSON]
+                       folder hook_module host
+
+positional arguments:
+  folder                full path to folder of videos to process
+  hook_module           full path to hook module for custom functions (a
+                        python file)
+  host                  the IP-address / hostname of the segmenter
 
 optional arguments:
   -h, --help            show this help message and exit
+  -v, --verbose         set logging level to debug
+  -q, --quiet           set logging level to errors only
+  -c, --csv             dump csv log file
+  -p PORT, --port PORT  the segmenter port number
   -r REGEX, --regex REGEX
                         regex to find camera name
-  -c, --csv             dump csv log file
+                        (Default=".*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*")
   -s STORAGE, --storage STORAGE
                         location of the local storage db
-  -f FOLDER, --folder FOLDER
-                        folder to process
-  -i HOST, --host HOST  the segmenter ip
-  -p PORT, --port PORT  the segmenter port number
-  -m HOOK_MODULE, --hook_module HOOK_MODULE
-                        full path to hook module for custom functions (a
-                        python file)
   -d HOOK_DATA_JSON, --hook_data_json HOOK_DATA_JSON
                         a json object containing extra information to be
                         passed to the hook-module
-  -v, --verbose         set logging level to debug
-  -q, --quiet           set logging level to errors only
 ```
 
 The video-importer will traverse a directory to extract the camera-name and video-timestamp from the video filenames,
