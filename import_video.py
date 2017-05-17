@@ -63,7 +63,8 @@ class GenericImporter(object):
                     lng = float(match.group('lng'))
                 except: pass
         if not camera:
-            logging.warn('did not detect camera name, assuming "%s"', self.DEFAULT_CAMERA_NAME)
+            logging.error('did not detect camera name, assuming "%s"', self.DEFAULT_CAMERA_NAME)
+            sys.exit(1)
             camera = self.DEFAULT_CAMERA_NAME
         if not epoch:
             epoch = os.path.getctime(path)        
@@ -225,7 +226,7 @@ class GenericImporter(object):
     def __init__(self):
         self.DEFAULT_CAMERA_NAME = 'unnamed' # used if we can't parse a camera name from video file names
         self.REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
-        self.DEFAULT_FILE_REGEX = '.*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*'
+        self.DEFAULT_FILE_REGEX = ".*/(?P<camera>\w+?)\-.*\-(?P<epoch>\d+)\.mp4"
 
         self.parser = argparse.ArgumentParser()
         # optional arguments/flags
@@ -233,10 +234,9 @@ class GenericImporter(object):
         self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
         self.parser.add_argument('-c', '--csv', action='store_true', default=False, help='dump csv log file')
         self.parser.add_argument('-p', '--port', default='8080', help='the segmenter port number (default: 8080)')
-        self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, 
-                                 help='regex to find camera name (default: %s)' % self.DEFAULT_FILE_REGEX)
+        self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, help='regex to find camera name (default: %s)' % self.DEFAULT_FILE_REGEX)
         self.parser.add_argument('-s', '--storage', default='.processes.shelve',
-                                 help='full path to the local storage db (default: ./processes.shelve)')
+                                 help='full path to the local storage db (default: ./.processes.shelve)')
         self.parser.add_argument('-d', '--hook_data_json', default=None,
                                  help='a json object containing extra information to be passed to the hook-module')
         self.parser.add_argument('-f', '--hook_data_json_file', default=None,

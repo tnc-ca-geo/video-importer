@@ -46,11 +46,11 @@ Which will output:
 
 ```man
 usage: import_video.py [-h] [-v] [-q] [-c] [-p PORT] [-r REGEX] [-s STORAGE]
-                       [-d HOOK_DATA_JSON]
+                       [-d HOOK_DATA_JSON] [-f HOOK_DATA_JSON_FILE]
                        folder hook_module host
 
 positional arguments:
-  folder                full path to folder of videos to process
+  folder                full path to folder of input videos to process
   hook_module           full path to hook module for custom functions (a
                         python file)
   host                  the IP-address / hostname of the segmenter
@@ -60,15 +60,19 @@ optional arguments:
   -v, --verbose         set logging level to debug
   -q, --quiet           set logging level to errors only
   -c, --csv             dump csv log file
-  -p PORT, --port PORT  the segmenter port number
+  -p PORT, --port PORT  the segmenter port number (default: 8080)
   -r REGEX, --regex REGEX
-                        regex to find camera name
-                        (Default=".*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*")
+                        regex to find camera name (default:
+                        .*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*)
   -s STORAGE, --storage STORAGE
-                        location of the local storage db
+                        full path to the local storage db (default:
+                        ./processes.shelve)
   -d HOOK_DATA_JSON, --hook_data_json HOOK_DATA_JSON
                         a json object containing extra information to be
                         passed to the hook-module
+  -f HOOK_DATA_JSON_FILE, --hook_data_json_file HOOK_DATA_JSON_FILE
+                        full path to a file containing a json object of extra
+                        info to be passed to the hook module
 ```
 
 The video-importer will traverse a directory to extract the camera-name and video-timestamp from the video filenames,
