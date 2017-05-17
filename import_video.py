@@ -172,7 +172,7 @@ class GenericImporter(object):
         if hasattr(self.module, 'set_hook_data'):
             # now we know all of the camera configuration data, give it to the hook module in case they need it
             logging.debug("setting camera config data in hook module for cameras: %r", [name for name in self.cameras])
-            self.module.set_hook_data(dict(cameras=[self.cameras[name] for name in self.cameras]))
+            self.module.set_hook_data(dict(registered_cameras=[self.cameras[name] for name in self.cameras]))
 
         # let the camera registration info prop. to Box and let Box kick off the webserver
         time.sleep(1)
@@ -232,13 +232,15 @@ class GenericImporter(object):
         self.parser.add_argument('-v', '--verbose', action='store_true', default=False, help='set logging level to debug')
         self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
         self.parser.add_argument('-c', '--csv', action='store_true', default=False, help='dump csv log file')
-        self.parser.add_argument('-p', '--port', default='8080', help='the segmenter port number')
+        self.parser.add_argument('-p', '--port', default='8080', help='the segmenter port number (default: 8080)')
         self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, 
-                                 help='regex to find camera name (Default="%s")' % self.DEFAULT_FILE_REGEX)
+                                 help='regex to find camera name (default: %s)' % self.DEFAULT_FILE_REGEX)
         self.parser.add_argument('-s', '--storage', default='.processes.shelve',
-                                 help='location of the local storage db')
+                                 help='full path to the local storage db (default: ./processes.shelve)')
         self.parser.add_argument('-d', '--hook_data_json', default=None,
                                  help='a json object containing extra information to be passed to the hook-module')
+        self.parser.add_argument('-f', '--hook_data_json_file', default=None,
+                                 help='full path to a file containing a json object of extra info to be passed to the hook module')
 
         # required, postitional arguments
         self.parser.add_argument('folder', help='full path to folder of input videos to process')
@@ -264,6 +266,18 @@ class GenericImporter(object):
             hook_data = dict(logger=logging.getLogger())
             if self.args.hook_data_json:
                 hook_data.update(json.loads(self.args.hook_data_json))
+            if self.args.hook_data_json_file:
+                if not os.path.exists(self.args.hook_data_json_file):
+                    logging.error("--hook_data_json_file value: %s does not exist", self.args.hook_data_json_file)
+                    sys.exit(1)
+                try:
+                    with open(self.args.hook_data_json_file) as fh:
+                        data = json.loads(fh.read())
+                except:
+                    logging.error("error while loading json data from file: %s", self.args.hook_data_json_file)
+                    logging.error("traceback:\n%r", traceback.format_exc())
+                    sys.exit(1)
+                hook_data.update(data)
             self.module.set_hook_data(hook_data)
 
     def run(self):
