@@ -53,7 +53,7 @@ positional arguments:
   folder                full path to folder of input videos to process
   hook_module           full path to hook module for custom functions (a
                         python file)
-  host                  the IP-address / hostname of the segmenter
+  host                  the IP-address or hostname of the segmenter
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -62,17 +62,23 @@ optional arguments:
   -c, --csv             dump csv log file
   -p PORT, --port PORT  the segmenter port number (default: 8080)
   -r REGEX, --regex REGEX
-                        regex to find camera name (default:
-                        .*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*)
+                        regex to extract input-file meta-data. The two capture
+                        group fields are <camera> and <epoch> which capture
+                        the name of the camera that the video originates from
+                        and the timestamp of the start of the video
+                        respectively. (default:
+                        ".*/(?P<camera>\w+?)\-.*\-(?P<epoch>\d+)\.mp4")
   -s STORAGE, --storage STORAGE
                         full path to the local storage db (default:
-                        ./processes.shelve)
+                        ./.processes.shelve)
   -d HOOK_DATA_JSON, --hook_data_json HOOK_DATA_JSON
                         a json object containing extra information to be
                         passed to the hook-module
   -f HOOK_DATA_JSON_FILE, --hook_data_json_file HOOK_DATA_JSON_FILE
                         full path to a file containing a json object of extra
-                        info to be passed to the hook module
+                        info to be passed to the hook module.note - the values
+                        passed in through this trump the same values passed in
+                        through the `-d` param
 ```
 
 The video-importer will traverse a directory to extract the camera-name and video-timestamp from the video filenames,
@@ -85,11 +91,11 @@ the name of the camera that recorded it are required.
 This data is extracted from the video filenames according to a regular expression provided by the `--regex` parameter.
 The minimum data extracted by the regex includes the:
 
-1. *camera name* that recorded the video
-2. *timestamp* at which the video was recorded
+1. *camera name* (capture group name `<camera>`) that recorded the video
+2. *timestamp* (capture group name `<epoch>`) at which the video was recorded
 
-As the importer identifies new camera names in traversing the directories,  it will call the **camera-registration** function using
-the camera name discovered and will call the **video-content-post** function using the timestamp and camera name.
+As the importer identifies new camera names in traversing the directories,  it will call the `register_camera` function using
+the camera name discovered and will call the `post_video_content` function using the timestamp and camera name.
 
 *Example*
 
@@ -120,7 +126,7 @@ An example of the structure of these functions can be found in the [`hooks_templ
 the following 3 subsections.
 
 
-#### Camera Registration Function
+#### `register_camera` Function
 
 Some services require that cameras be registered with the service before submitting the videos for processing.
 So the video-importer calls the `register_camera` function defined in the hooks-module you specify. 
@@ -137,23 +143,18 @@ def register_camera(camera_name, host=None, port=None):
         camera_name   - the name of the camera (as parsed from the filename)
         host          - the URI/IP address of the segmenter being used
         port          - the port to access the webserver of the segmenter
-    returns: this function returns a dctionary describing the new camera, including the camera ID
-             note - it is required that there is at least one property in this dictionary called
-             'camera_id', that is the unique ID of the camera as determined by the service this
-             function is registering the camera with.
+    returns: this function returns a dictionary describing the new camera
+             NOTE: the response from the register_camera function must include a field named camera_id,
+             which is the unique ID assigned by the service used to register this camera_name.
 
-    description: this function is called when a new camera is found by the import script,
-                 if a camera needs to be registered with a service before content from that
+    description: this function is called when a new camera is found by the import script.
+                 If a camera needs to be registered with a service before content from that
                  camera can be segmented then the logic for registering the camera should
                  exist in this function.
-                 For Camio, this function POSTs to /api/cameras/discovered with the new camera
-                 entry. It is required that the "acquisition_method": "batch" set in the camera
-                 config for it to be known as a batch-import source as opposed to a real-time
-                 input source.
     """
 ```
 
-#### POST Video Content Function
+#### `post_video_content` Function 
 
 After cameras have been registered, the video-importer loops over the video files in the directory and sends
 them to the segmenter with all the information collected from the files and from the camera registration.
@@ -166,20 +167,20 @@ the chosen segmentation service, and pass the video along.
 def post_video_content(host, port, camera_name, camera_id, filepath, timestamp, latlng=None):
     """
     arguments:
-        host        - the url of the segmenter # TODO(carter) call this url or server since host is confusing.
+        host        - the url of the segmenter
         port        - the port to access the webserver on the segmenter
         camera_name - the parsed name of the camera
-        camera_id   - the ID of the camera as returned from the register_camera function
-        filepath    - full path to the video file that needs segmentation
-        timestamp   - the earliest timestamp contained in the video file
-        location (opt) - a string describing the location of the camera. 
-                         example: {"location": {"lat": 7.367598, "lng":134.706975}, "accuracy":5.0}
+        camera_id   - the ID of the camera as returned from the service
+        filepath    - full path to the video file that needs to be uploaded for segmentation
+        timestamp   - the starting timestamp of the video file
+        location(opt) - a json-string describing the location of the camera
+                        Example {"location:" {"lat": 7.367598, "lng":134.706975}, "accuracy":5.0}
     returns: true/false based on success
-    
-    description: this function is called each time the importer finds a video for a specific camera. 
-                 Put the code for posting the video and meatadata to the segmenter inside this function.
+
+    description: This function is called each time a new video file is found for a specific camera, so 
+                 add the logic required to ingest each video for segmentation and labeling here. 
+                 For example, when using Camio, the HTTP POST to the segmenter resides here.
     """
-    pass
 ```
 
 #### Set Hook Data Function
@@ -198,11 +199,11 @@ in the hook-module you submit (should that function exist). This function looks 
 def set_hook_data(data_dict):
     """
     arguments:
-        data_dict    - a python dictionary full of values passed in by the user in the `--hook_data_json` argument. Includes a reference
-                       to the logging object that is being used by the importer so that the hooks-module can log in a similar fashion
-    returns: nothing
+        data_dict - data for use by the hooks module
+    description:
+        let the importer pass in any arbitrary data for use by the hooks program
+        (e.g. use this to accept plan data or user-account information)
     """
-    pass
 ```
 
 

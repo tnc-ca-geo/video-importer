@@ -49,7 +49,7 @@ class GenericImporter(object):
             match = self.regex.match(path)
             if match:
                 try:
-                    camera = match.group('camera')
+                    camera_name = match.group('camera')
                     logging.info('camera_name: %s', camera)
                 except: pass
                 try:
@@ -62,17 +62,16 @@ class GenericImporter(object):
                 try:
                     lng = float(match.group('lng'))
                 except: pass
-        if not camera:
+        if not camera_name:
             logging.error('did not detect camera name, assuming "%s"', self.DEFAULT_CAMERA_NAME)
             sys.exit(1)
-            camera = self.DEFAULT_CAMERA_NAME
         if not epoch:
             epoch = os.path.getctime(path)        
-            logging.warn('did not detect epoch, assuming "%s"', epoch)
+            logging.warn('did not detect epoch, assuming "%s" (time file was last changed)', epoch)
         timestamp = datetime.datetime.fromtimestamp(epoch).isoformat()
         # in case the epoch does nt have milliseconds
         if len(timestamp)==19: timestamp = timestamp+'.000'
-        return {'camera':camera, 'timestamp':timestamp, 'lat':lat, 'lng':lng}
+        return {'camera':camera_name, 'timestamp':timestamp, 'lat':lat, 'lng':lng}
 
     def now(self):
         return datetime.datetime.now().isoformat()
@@ -234,18 +233,22 @@ class GenericImporter(object):
         self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
         self.parser.add_argument('-c', '--csv', action='store_true', default=False, help='dump csv log file')
         self.parser.add_argument('-p', '--port', default='8080', help='the segmenter port number (default: 8080)')
-        self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, help='regex to find camera name (default: %s)' % self.DEFAULT_FILE_REGEX)
+        self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, 
+                help=('regex to extract input-file meta-data. The two capture group fields are <camera> and <epoch> '
+                     'which capture the name of the camera that the video originates from and the timestamp of the start of '
+                     'the video respectively. (default: "%s")' % self.DEFAULT_FILE_REGEX))
         self.parser.add_argument('-s', '--storage', default='.processes.shelve',
-                                 help='full path to the local storage db (default: ./.processes.shelve)')
+                            help='full path to the local storage db (default: ./.processes.shelve)')
         self.parser.add_argument('-d', '--hook_data_json', default=None,
-                                 help='a json object containing extra information to be passed to the hook-module')
+                            help='a json object containing extra information to be passed to the hook-module')
         self.parser.add_argument('-f', '--hook_data_json_file', default=None,
-                                 help='full path to a file containing a json object of extra info to be passed to the hook module')
+                            help=('full path to a file containing a json object of extra info to be passed to the hook module.'
+                            'note - the values passed in through this trump the same values passed in through the `-d` param'))
 
         # required, postitional arguments
         self.parser.add_argument('folder', help='full path to folder of input videos to process')
         self.parser.add_argument('hook_module', help='full path to hook module for custom functions (a python file)')
-        self.parser.add_argument('host', help='the IP-address / hostname of the segmenter')
+        self.parser.add_argument('host', help='the IP-address or hostname of the segmenter')
         self.define_custom_args()
 
     def init_args(self):
@@ -322,6 +325,8 @@ def main():
     logging.info("finishing up...")
     if job_id:
         logging.info("Job ID: %s", job_id)
+    else:
+        logging.warn("no Job ID found, did something go wrong?")
 
 if __name__=='__main__':
     main()
