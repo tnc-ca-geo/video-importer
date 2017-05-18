@@ -23,28 +23,62 @@ which tuna or marlin was brought on board as in [this demo](https://www.youtube.
 
 
 --------
+--------
+
+## Installing the importer
+
+```
+git clone https://github.com/tnc-ca-geo/video-importer.git
+cd video-importer
+python setup.py install
+```
+
 
 ## Running the Importer
 
+To get a simple overview of importer and how to use it, try running this from a shell:
+
 ```sh
-usage: importer.py [-h] [-v] [-r REGEX] [-c] [-s STORAGE] [-f FOLDER]
-                   [-i HOST] [-p PORT] [-m HOOK_MODULE]
+python import_video.py --help
+```
+
+Which will output:
+
+```man
+usage: import_video.py [-h] [-v] [-q] [-c] [-p PORT] [-r REGEX] [-s STORAGE]
+                       [-d HOOK_DATA_JSON] [-f HOOK_DATA_JSON_FILE]
+                       folder hook_module host
+
+positional arguments:
+  folder                full path to folder of input videos to process
+  hook_module           full path to hook module for custom functions (a
+                        python file)
+  host                  the IP-address or hostname of the segmenter
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --verbose         log more info
-  -r REGEX, --regex REGEX
-                        regex to find camera name and timestamp
+  -v, --verbose         set logging level to debug
+  -q, --quiet           set logging level to errors only
   -c, --csv             dump csv log file
+  -p PORT, --port PORT  the segmenter port number (default: 8080)
+  -r REGEX, --regex REGEX
+                        regex to extract input-file meta-data. The two capture
+                        group fields are <camera> and <epoch> which capture
+                        the name of the camera that the video originates from
+                        and the timestamp of the start of the video
+                        respectively. (default:
+                        ".*/(?P<camera>\w+?)\-.*\-(?P<epoch>\d+)\.mp4")
   -s STORAGE, --storage STORAGE
-                        location of the local storage db
-  -f FOLDER, --folder FOLDER
-                        folder (directory) to process
-  -i HOST, --host HOST  the segmenter's IP address
-  -p PORT, --port PORT  the segmenter's port number
-  -m HOOK_MODULE, --hook_module HOOK_MODULE
-                        hook module for custom functions
-
+                        full path to the local storage db (default:
+                        ./.processes.shelve)
+  -d HOOK_DATA_JSON, --hook_data_json HOOK_DATA_JSON
+                        a json object containing extra information to be
+                        passed to the hook-module
+  -f HOOK_DATA_JSON_FILE, --hook_data_json_file HOOK_DATA_JSON_FILE
+                        full path to a file containing a json object of extra
+                        info to be passed to the hook module.note - the values
+                        passed in through this trump the same values passed in
+                        through the `-d` param
 ```
 
 The video-importer will traverse a directory to extract the camera-name and video-timestamp from the video filenames,
@@ -57,11 +91,13 @@ the name of the camera that recorded it are required.
 This data is extracted from the video filenames according to a regular expression provided by the `--regex` parameter.
 The minimum data extracted by the regex includes the:
 
-1. *camera name* that recorded the video
-2. *timestamp* at which the video was recorded
+1. *camera name* (capture group name `<camera>`) that recorded the video
+2. *timestamp* (capture group name `<epoch>`) at which the video was recorded
 
-As the importer identifies new camera names in traversing the directories,  it will call the **camera-registration** function using
-the camera name discovered and will call the **video-content-post** function using the timestamp and camera name.
+As the importer identifies new camera names while traversing the directory of input videos, it will call the `register_camera` function using
+the camera name discovered. Once a camera is registered, when the script finds any videos from that camera it will call the `post_video_content` 
+function using the timestamp of the start of that video and the camera name, allowing the segmentation service to keep track of which videos came from
+which cameras.
 
 *Example*
 
@@ -81,17 +117,21 @@ the second capture group assigns the value `14759753350` to the `epoch` variable
 
 ### Hook Module
 
-The video-importer is designed to work with any service that can ingest video for event segmentation and labeling. 
-The hooks-module specifies a python module with the exact functions used to interact with the desired services:
+The `import_video.py` program is designed to work with any service that can ingest video for event segmentation and labeling. 
+The `--hooks_module` argument is used to specify a python module with the following functions that allow the importer to work with your desired service.
 
-1. register_camera
-2. post_video_content
+1. `register_camera` - Informs the service about a new camera that has been found
+2. `post_video_content` - Sends the video data to the segmenter via a POST
+3. `set_hook_data` - Sets hook-specific data (specific to auth, camera data, etc.)
 
+An example of the structure of these functions can be found in the [`hooks_template.py`](hooks_template.py) file, or below in 
+the following 3 subsections.
 
-#### Camera Registration Function
+#### `register_camera` Function
 
-Some services require that cameras be registered with the service before submitting the videos for processing.
-So the video-importer calls the `register_camera` function defined in the hooks-module you specify. 
+Some services require that cameras be registered with the service before submitting the videos for processing,
+so the `import_video.py` program calls the `register_camera` function defined in the hooks-module you specify before
+sending any videos from that camera for segmentation.
 If no camera registration is required, then the `register_camera` function can return a unique ID for the camera, even 
 if the ID is simply the camera name. 
 The importer uses this camera ID to keep track of which video files have been processed for particular cameras.
@@ -102,20 +142,21 @@ An example of this function interacting with a service can be found in the [cami
 def register_camera(camera_name, host=None, port=None):
     """
     arguments:
-        camera_name   - the name of the camera (as parsed from the filename) 
-        host          - the URI/IP address of the segmenter being used #TODO(carter) should be server with path?
+        camera_name   - the name of the camera (as parsed from the filename)
+        host          - the URI/IP address of the segmenter being used
         port          - the port to access the webserver of the segmenter
-    returns: this function returns the Camio-specific camera ID.
-                 
-    description: this function is called when a new camera is found by the video-importer.
+    returns: this function returns a dictionary describing the new camera
+             NOTE: the response from the register_camera function must include a field named camera_id,
+             which is the unique ID assigned by the service used to register this camera_name.
+
+    description: this function is called when a new camera is found by the import script.
                  If a camera needs to be registered with a service before content from that
-                 camera can be segmented/labeled, then put the code for registering the
-                 camera inside this function. If not then return your own unique ID (even if just the camera name)
+                 camera can be segmented then the logic for registering the camera should
+                 exist in this function.
     """
-    pass  #TODO(carter) should the default be return camera_name?
 ```
 
-#### POST Video Content Function
+#### `post_video_content` Function 
 
 After cameras have been registered, the video-importer loops over the video files in the directory and sends
 them to the segmenter with all the information collected from the files and from the camera registration.
@@ -125,21 +166,45 @@ the chosen segmentation service, and pass the video along.
 
 
 ```python
-#TODO(carter) change latlng to location so that we accomodate a variety of ways to specify location and accuracy.
 def post_video_content(host, port, camera_name, camera_id, filepath, timestamp, latlng=None):
     """
     arguments:
-        host        - the url of the segmenter # TODO(carter) call this url or server since host is confusing.
+        host        - the url of the segmenter
         port        - the port to access the webserver on the segmenter
         camera_name - the parsed name of the camera
-        camera_id   - the ID of the camera as returned from the register_camera function
-        filepath    - full path to the video file that needs segmentation
-        timestamp   - the earliest timestamp contained in the video file
-        latlng (opt) - the lat/long of the camera (as parsed from the filename)
+        camera_id   - the ID of the camera as returned from the service
+        filepath    - full path to the video file that needs to be uploaded for segmentation
+        timestamp   - the starting timestamp of the video file
+        location(opt) - a string of JSON describing the location of the camera
+                        Example {"location": {"lat": 7.367598, "lng":134.706975}, "accuracy":5.0}
     returns: true/false based on success
-    
-    description: this function is called each time the importer finds a video for a specific camera. 
-                 Put the code for posting the video and meatadata to the segmenter inside this function.
+
+    description: This function is called each time a new video file is found for a specific camera, so 
+                 add the logic required to ingest each video for segmentation and labeling here. 
+                 For example, when using Camio, the HTTP POST to the segmenter resides here.
     """
-    pass
 ```
+
+#### `set_hook_data` Function
+
+Sometimes there is extra data that the hook-module needs from the user but is not explicitly defined in the importer arguments,
+you can pass this data in using the `--hook_data_json` argument. Simple give something like 
+
+```
+python import_video.py "... some arguments here..." --hook_data_json '{"camera_plan": "pro", "user_id": "AABBCCDD"}'
+```
+
+And the json object that you define will be de-serialized into a python dictionary and passed to the `set_hook_data` function defined
+in the hook-module you submit (should that function exist). This function looks like this:
+
+```python
+def set_hook_data(data_dict):
+    """
+    arguments:
+        data_dict - data for use by the hooks module
+    description:
+        let the importer pass in any arbitrary data for use by the hooks program
+        (e.g. use this to accept plan data or user-account information)
+    """
+```
+
