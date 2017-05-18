@@ -44,7 +44,7 @@ def get_duration(filename):
 class GenericImporter(object):
     
     def get_params(self, path):
-        camera = epoch = lat = lng = None
+        camera_name = epoch = lat = lng = None
         if self.regex:
             match = self.regex.match(path)
             if match:
@@ -63,8 +63,8 @@ class GenericImporter(object):
                     lng = float(match.group('lng'))
                 except: pass
         if not camera_name:
-            logging.error('did not detect camera name, assuming "%s"', self.DEFAULT_CAMERA_NAME)
-            sys.exit(1)
+            logging.error("unable to parse camera name from file: %s using regex: %s.", path, self.regex)
+            return None
         if not epoch:
             epoch = os.path.getctime(path)        
             logging.warn('did not detect epoch, assuming "%s" (time file was last changed)', epoch)
@@ -126,6 +126,10 @@ class GenericImporter(object):
         job_id = None
         for filename in self.folder_walker(path):        
             params = self.get_params(filename)
+            if not params:
+                logging.error(
+                        "error while parsing metadata from file: %s, skipping this file", filename)
+                continue
             key = self.hashfile(filename)
             given_name = params['camera']+'.'+params['timestamp']+'.'+key+'.mp4'
             if key in scheduled:

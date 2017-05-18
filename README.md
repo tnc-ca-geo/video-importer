@@ -175,8 +175,8 @@ def post_video_content(host, port, camera_name, camera_id, filepath, timestamp, 
         camera_id   - the ID of the camera as returned from the service
         filepath    - full path to the video file that needs to be uploaded for segmentation
         timestamp   - the starting timestamp of the video file
-        location(opt) - a json-string describing the location of the camera
-                        Example {"location:" {"lat": 7.367598, "lng":134.706975}, "accuracy":5.0}
+        location(opt) - a string of JSON describing the location of the camera
+                        Example {"location": {"lat": 7.367598, "lng":134.706975}, "accuracy":5.0}
     returns: true/false based on success
 
     description: This function is called each time a new video file is found for a specific camera, so 
