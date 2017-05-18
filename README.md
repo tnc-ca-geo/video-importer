@@ -185,7 +185,7 @@ def post_video_content(host, port, camera_name, camera_id, filepath, timestamp, 
     """
 ```
 
-#### Set Hook Data Function
+#### `set_hook_data` Function
 
 Sometimes there is extra data that the hook-module needs from the user but is not explicitly defined in the importer arguments,
 you can pass this data in using the `--hook_data_json` argument. Simple give something like 
