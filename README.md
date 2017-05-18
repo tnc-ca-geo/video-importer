@@ -94,8 +94,10 @@ The minimum data extracted by the regex includes the:
 1. *camera name* (capture group name `<camera>`) that recorded the video
 2. *timestamp* (capture group name `<epoch>`) at which the video was recorded
 
-As the importer identifies new camera names in traversing the directories,  it will call the `register_camera` function using
-the camera name discovered and will call the `post_video_content` function using the timestamp and camera name.
+As the importer identifies new camera names while traversing the directory of input videos, it will call the `register_camera` function using
+the camera name discovered. Once a camera is registered, when the script finds any videos from that camera it will call the `post_video_content` 
+function using the timestamp of the start of that video and the camera name, allowing the segmentation service to keep track of which videos came from
+which cameras.
 
 *Example*
 
