@@ -116,7 +116,7 @@ the second capture group assigns the value `14759753350` to the `epoch` variable
 ### Hook Module
 
 The video-importer is designed to work with any service that can ingest video for event segmentation and labeling. 
-The hooks-module (`--hooks_module`) specifies a python module with these functions used to interact with the desired services:
+The `--hooks_module` argument allows you to specify a python module with these functions used to interact with the desired services:
 
 1. `register_camera` - Informs the service about a new camera that has been found
 2. `post_video_content` - Sends the video data to the segmenter via a POST
@@ -189,7 +189,7 @@ Sometimes there is extra data that the hook-module needs from the user but is no
 you can pass this data in using the `--hook_data_json` argument. Simple give something like 
 
 ```
-python importer "... some arguments here..." --hook_data_json '{"camera_plan": "pro", "user_id": "AABBCCDD"}'
+python import_video.py "... some arguments here..." --hook_data_json '{"camera_plan": "pro", "user_id": "AABBCCDD"}'
 ```
 
 And the json object that you define will be de-serialized into a python dictionary and passed to the `set_hook_data` function defined
@@ -205,5 +205,4 @@ def set_hook_data(data_dict):
         (e.g. use this to accept plan data or user-account information)
     """
 ```
-
 
