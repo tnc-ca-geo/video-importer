@@ -115,8 +115,8 @@ the second capture group assigns the value `14759753350` to the `epoch` variable
 
 ### Hook Module
 
-The video-importer is designed to work with any service that can ingest video for event segmentation and labeling. 
-The `--hooks_module` argument allows you to specify a python module with these functions used to interact with the desired services:
+The `import_video.py` program is designed to work with any service that can ingest video for event segmentation and labeling. 
+The `--hooks_module` argument is used to specify a python module with the following functions that allow the importer to work with your desired service.
 
 1. `register_camera` - Informs the service about a new camera that has been found
 2. `post_video_content` - Sends the video data to the segmenter via a POST
@@ -125,11 +125,11 @@ The `--hooks_module` argument allows you to specify a python module with these f
 An example of the structure of these functions can be found in the [`hooks_template.py`](hooks_template.py) file, or below in 
 the following 3 subsections.
 
-
 #### `register_camera` Function
 
-Some services require that cameras be registered with the service before submitting the videos for processing.
-So the video-importer calls the `register_camera` function defined in the hooks-module you specify. 
+Some services require that cameras be registered with the service before submitting the videos for processing,
+so the `import_video.py` program calls the `register_camera` function defined in the hooks-module you specify before
+sending any videos from that camera for segmentation.
 If no camera registration is required, then the `register_camera` function can return a unique ID for the camera, even 
 if the ID is simply the camera name. 
 The importer uses this camera ID to keep track of which video files have been processed for particular cameras.
