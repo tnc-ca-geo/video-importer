@@ -99,7 +99,7 @@ class GenericImporter(object):
         with open(filename) as myfile:
             for chunk in iter(lambda: myfile.read(4096), ''):
                 hasher.update(chunk)
-                return hasher.hexdigest()
+            return hasher.hexdigest()
 
     def upload_filename(self, filename, url, headers=None): 
         headers = headers or {}  
