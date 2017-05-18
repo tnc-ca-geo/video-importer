@@ -27,9 +27,6 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 re_notascii = re.compile('\W')
 
-DEFAULT_CAMERA_NAME = 'unnamed' # used if we can't parse a camera name from video file names
-REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
-
 def get_duration(filename):
     duration = None
     try:
@@ -52,7 +49,7 @@ class GenericImporter(object):
             match = self.regex.match(path)
             if match:
                 try:
-                    camera = match.group('camera')
+                    camera_name = match.group('camera')
                     logging.info('camera_name: %s', camera)
                 except: pass
                 try:
@@ -65,16 +62,16 @@ class GenericImporter(object):
                 try:
                     lng = float(match.group('lng'))
                 except: pass
-        if not camera:
-            logging.warn('did not detect camera name, assuming "unnamed"')
-            camera = DEFAULT_CAMERA_NAME
+        if not camera_name:
+            logging.error('did not detect camera name, assuming "%s"', self.DEFAULT_CAMERA_NAME)
+            sys.exit(1)
         if not epoch:
             epoch = os.path.getctime(path)        
-            logging.warn('did not detect epoch, assuming "%s"', epoch)
+            logging.warn('did not detect epoch, assuming "%s" (time file was last changed)', epoch)
         timestamp = datetime.datetime.fromtimestamp(epoch).isoformat()
         # in case the epoch does nt have milliseconds
         if len(timestamp)==19: timestamp = timestamp+'.000'
-        return {'camera':camera, 'timestamp':timestamp, 'lat':lat, 'lng':lng}
+        return {'camera':camera_name, 'timestamp':timestamp, 'lat':lat, 'lng':lng}
 
     def now(self):
         return datetime.datetime.now().isoformat()
@@ -175,7 +172,7 @@ class GenericImporter(object):
         if hasattr(self.module, 'set_hook_data'):
             # now we know all of the camera configuration data, give it to the hook module in case they need it
             logging.debug("setting camera config data in hook module for cameras: %r", [name for name in self.cameras])
-            self.module.set_hook_data(dict(cameras=[self.cameras[name] for name in self.cameras]))
+            self.module.set_hook_data(dict(registered_cameras=[self.cameras[name] for name in self.cameras]))
 
         # let the camera registration info prop. to Box and let Box kick off the webserver
         time.sleep(1)
@@ -226,25 +223,32 @@ class GenericImporter(object):
         return stream.getvalue()
     
     def __init__(self):
+        self.DEFAULT_CAMERA_NAME = 'unnamed' # used if we can't parse a camera name from video file names
+        self.REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
+        self.DEFAULT_FILE_REGEX = ".*/(?P<camera>\w+?)\-.*\-(?P<epoch>\d+)\.mp4"
+
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument('-r', '--regex', default='.*/(?P<camera>.+?)/(?P<epoch>\d+(.\d+)?).*',
-                            help='regex to find camera name')
-        self.parser.add_argument('-c', '--csv', action='store_true', default=False,
-                            help='dump csv log file')
-        self.parser.add_argument('-s', '--storage', default='.processes.shelve',
-                            help='location of the local storage db')
-        self.parser.add_argument('-f', '--folder', default='data',
-                            help='full path to folder of videos to process')
-        self.parser.add_argument('-i', '--host', default='127.0.0.1',
-                                 help='the IP-address / hostname of the segmenter')
-        self.parser.add_argument('-p', '--port', default='8080',
-                                 help='the segmenter port number')
-        self.parser.add_argument('-m', '--hook_module', default=None,
-                                 help='full path to hook module for custom functions (a python file)')
-        self.parser.add_argument('-d', '--hook_data_json', default=None,
-                                 help='a json object containing extra information to be passed to the hook-module')
+        # optional arguments/flags
         self.parser.add_argument('-v', '--verbose', action='store_true', default=False, help='set logging level to debug')
         self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
+        self.parser.add_argument('-c', '--csv', action='store_true', default=False, help='dump csv log file')
+        self.parser.add_argument('-p', '--port', default='8080', help='the segmenter port number (default: 8080)')
+        self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, 
+                help=('regex to extract input-file meta-data. The two capture group fields are <camera> and <epoch> '
+                     'which capture the name of the camera that the video originates from and the timestamp of the start of '
+                     'the video respectively. (default: "%s")' % self.DEFAULT_FILE_REGEX))
+        self.parser.add_argument('-s', '--storage', default='.processes.shelve',
+                            help='full path to the local storage db (default: ./.processes.shelve)')
+        self.parser.add_argument('-d', '--hook_data_json', default=None,
+                            help='a json object containing extra information to be passed to the hook-module')
+        self.parser.add_argument('-f', '--hook_data_json_file', default=None,
+                            help=('full path to a file containing a json object of extra info to be passed to the hook module.'
+                            'note - the values passed in through this trump the same values passed in through the `-d` param'))
+
+        # required, postitional arguments
+        self.parser.add_argument('folder', help='full path to folder of input videos to process')
+        self.parser.add_argument('hook_module', help='full path to hook module for custom functions (a python file)')
+        self.parser.add_argument('host', help='the IP-address or hostname of the segmenter')
         self.define_custom_args()
 
     def init_args(self):
@@ -256,7 +260,7 @@ class GenericImporter(object):
         logging.info("submitted hooks module: %r", self.args.hook_module)
         self.module = imp.load_source('hooks_module', self.args.hook_module)
         # ensure all required callback functions exist
-        for hook_callback in REQUIRED_MODULE_CALLBACK_FUNCTIONS:
+        for hook_callback in self.REQUIRED_MODULE_CALLBACK_FUNCTIONS:
             if not hasattr(self.module, hook_callback):
                 logging.error("hooks-module (%s) is missing required function: %s", self.args.hook_module, hook_callback)
                 logging.error("see README.md for information on required hook callback functions")
@@ -265,6 +269,18 @@ class GenericImporter(object):
             hook_data = dict(logger=logging.getLogger())
             if self.args.hook_data_json:
                 hook_data.update(json.loads(self.args.hook_data_json))
+            if self.args.hook_data_json_file:
+                if not os.path.exists(self.args.hook_data_json_file):
+                    logging.error("--hook_data_json_file value: %s does not exist", self.args.hook_data_json_file)
+                    sys.exit(1)
+                try:
+                    with open(self.args.hook_data_json_file) as fh:
+                        data = json.loads(fh.read())
+                except:
+                    logging.error("error while loading json data from file: %s", self.args.hook_data_json_file)
+                    logging.error("traceback:\n%r", traceback.format_exc())
+                    sys.exit(1)
+                hook_data.update(data)
             self.module.set_hook_data(hook_data)
 
     def run(self):
@@ -309,6 +325,8 @@ def main():
     logging.info("finishing up...")
     if job_id:
         logging.info("Job ID: %s", job_id)
+    else:
+        logging.warn("no Job ID found, did something go wrong?")
 
 if __name__=='__main__':
     main()
