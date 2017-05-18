@@ -44,7 +44,7 @@ def get_duration(filename):
 class GenericImporter(object):
     
     def get_params(self, path):
-        camera = epoch = lat = lng = None
+        camera_name = epoch = lat = lng = None
         if self.regex:
             match = self.regex.match(path)
             if match:
