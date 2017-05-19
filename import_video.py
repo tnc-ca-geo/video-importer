@@ -50,7 +50,7 @@ class GenericImporter(object):
             if match:
                 try:
                     camera_name = match.group('camera')
-                    logging.info('camera_name: %s', camera)
+                    logging.info('camera_name: %s', camera_name)
                 except: pass
                 try:
                     epoch = int(match.group('epoch'))
