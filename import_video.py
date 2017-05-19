@@ -1,6 +1,7 @@
 import argparse
 import time
 import shelve
+import textwrap
 import imp
 import json
 import psutil
@@ -22,6 +23,22 @@ try:
     HAVE_HACHOIR = True
 except:
     HAVE_HACHOIR = False
+
+DESCRIPTION = \
+"""
+This script traverses a directory of video files, parses the file names for metadata
+(like camera-name and video-timestamp), and sends the videos to a web-service to be segmented
+and labeled. This script is general in that it can interoperate with any service that implements
+a python moduel that defines the required functions `register_camera` and `post_video_content`.
+"""
+
+EXAMPLES = \
+"""
+The following example posts videos from the "~/video_input_files" directory, through the hook-module
+at ~/hook_service/hook_module.py to the segmenter located at the address http://my_segmenter_service:8080/videocontent.
+
+python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/video_input_files ~/hook_service/hook_module.py http://my_segmenter_service:8080/videocontent
+"""
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -231,7 +248,10 @@ class GenericImporter(object):
         self.REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
         self.DEFAULT_FILE_REGEX = ".*/(?P<camera>\w+?)\-.*\-(?P<epoch>\d+)\.mp4"
 
-        self.parser = argparse.ArgumentParser()
+        self.parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            description = textwrap.dedent(DESCRIPTION), epilog=EXAMPLES
+        )
         # optional arguments/flags
         self.parser.add_argument('-v', '--verbose', action='store_true', default=False, help='set logging level to debug')
         self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
