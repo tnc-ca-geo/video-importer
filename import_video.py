@@ -1,6 +1,7 @@
 import argparse
 import time
 import shelve
+import textwrap
 import imp
 import json
 import psutil
@@ -23,6 +24,22 @@ try:
 except:
     HAVE_HACHOIR = False
 
+DESCRIPTION = \
+"""
+This script traverses a directory of video files, parses the file names for metadata
+(like the name of the camera and beginning timestamp of the video), and sends the videos to a web-service to be segmented
+and labeled. This script is general in that it can interoperate with any service that implements
+a python module that defines the required functions `register_camera` and `post_video_content`.
+"""
+
+EXAMPLES = \
+"""
+The following example posts videos from the "~/video_input_files" directory, through the hook-module
+at ~/hook_service/hook_module.py to the segmenter located at the address http://my_segmenter_service:8080/api/content.
+
+python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/video_input_files ~/hook_service/hook_module.py http://my_segmenter_service:8080/api/content
+"""
+
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 re_notascii = re.compile('\W')
@@ -37,11 +54,75 @@ def get_duration(filename):
             duration = metadata.getValues('duration')[0].total_seconds()
         return duration
     except:
-        logging.error("error while getting duration meta-data from movie (%s)", filename)
+        logging.error("error while getting duration metadata from movie (%s)", filename)
         logging.error(traceback.format_exc())
         return None
 
 class GenericImporter(object):
+
+    def __init__(self):
+        self.REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
+        self.DEFAULT_FILE_REGEX = ".*/(?P<camera>\w+?)\-.*\-(?P<epoch>\d+)\.mp4"
+        self.handle_args()
+
+    def handle_args(self):
+        self.parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            description = textwrap.dedent(DESCRIPTION), epilog=EXAMPLES
+        )
+        # optional arguments/flags
+        self.parser.add_argument('-v', '--verbose', action='store_true', default=False, help='set logging level to debug')
+        self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
+        self.parser.add_argument('-c', '--csv', action='store_true', default=False, help='dump csv log file')
+        self.parser.add_argument('-p', '--port', default=None, help='the segmenter port number (default: 8080)')
+        self.parser.add_argument('--host', default=None, help='the IP address or hostname of the segmenter')
+        self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, 
+                help=('regex to extract input-file metadata. The two capture group fields are <camera> and <epoch> '
+                     'which capture the name of the camera that the video originates from and the timestamp of the start of '
+                     'the video respectively. (default: "%s")' % self.DEFAULT_FILE_REGEX))
+        self.parser.add_argument('-s', '--storage', default='.processes.shelve',
+                            help='full path to the local storage db (default: ./.processes.shelve)')
+        self.parser.add_argument('-d', '--hook_data_json', default=None,
+                            help='a json object containing extra information to be passed to the hook-module')
+        self.parser.add_argument('-f', '--hook_data_json_file', default=None,
+                            help=('full path to a file containing a json object of extra info to be passed to the hook module.'
+                            'note - the values passed in through the -d argument trump the values defined in the hook-data-json-file'))
+
+        # required, postitional arguments
+        self.parser.add_argument('folder', help='full path to folder of input videos to process')
+        self.parser.add_argument('hook_module', help='full path to hook module for custom functions (a python file)')
+        self.define_custom_args()
+    
+
+    def init_args(self):
+        self.args = self.parser.parse_args()
+        if self.args.verbose:
+            logging.getLogger().setLevel(logging.DEBUG)
+        elif self.args.quiet:
+            logging.getLogger().setLevel(logging.ERROR)
+        logging.info("submitted hooks module: %r", self.args.hook_module)
+        self.module = imp.load_source('hooks_module', self.args.hook_module)
+        # ensure all required callback functions exist
+        for hook_callback in self.REQUIRED_MODULE_CALLBACK_FUNCTIONS:
+            if not hasattr(self.module, hook_callback):
+                logging.error("hooks-module (%s) is missing required function: %s", self.args.hook_module, hook_callback)
+                logging.error("see README.md for information on required hook callback functions")
+                sys.exit(1)
+        if hasattr(self.module, 'set_hook_data'):
+            hook_data = dict(logger=logging.getLogger())
+            if self.args.hook_data_json_file:
+                try:
+                    with open(self.args.hook_data_json_file) as fh:
+                        data = json.loads(fh.read())
+                except:
+                    logging.error("error while loading json data from file: %s", self.args.hook_data_json_file)
+                    logging.error("traceback:\n%r", traceback.format_exc())
+                    sys.exit(1)
+                hook_data.update(data)
+            if self.args.hook_data_json:
+                hook_data.update(json.loads(self.args.hook_data_json))
+            self.module.set_hook_data(hook_data)
+
     
     def get_params(self, path):
         camera_name = epoch = lat = lng = None
@@ -63,8 +144,9 @@ class GenericImporter(object):
                     lng = float(match.group('lng'))
                 except: pass
         if not camera_name:
+            # hard fail on no camera name, something went wrong
             logging.error("unable to parse camera name from file: %s using regex: %s.", path, self.regex)
-            return None
+            sys.exit(1)
         if not epoch:
             epoch = os.path.getctime(path)        
             logging.warn('did not detect epoch, assuming "%s" (time file was last changed)', epoch)
@@ -225,67 +307,7 @@ class GenericImporter(object):
             writer.writerow((params['filename'], params['given_name'],params['camera'],
                              params['timestamp'], params['discovered_on'], params['uploaded_on']))
         return stream.getvalue()
-    
-    def __init__(self):
-        self.DEFAULT_CAMERA_NAME = 'unnamed' # used if we can't parse a camera name from video file names
-        self.REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
-        self.DEFAULT_FILE_REGEX = ".*/(?P<camera>\w+?)\-.*\-(?P<epoch>\d+)\.mp4"
 
-        self.parser = argparse.ArgumentParser()
-        # optional arguments/flags
-        self.parser.add_argument('-v', '--verbose', action='store_true', default=False, help='set logging level to debug')
-        self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
-        self.parser.add_argument('-c', '--csv', action='store_true', default=False, help='dump csv log file')
-        self.parser.add_argument('-p', '--port', default='8080', help='the segmenter port number (default: 8080)')
-        self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, 
-                help=('regex to extract input-file meta-data. The two capture group fields are <camera> and <epoch> '
-                     'which capture the name of the camera that the video originates from and the timestamp of the start of '
-                     'the video respectively. (default: "%s")' % self.DEFAULT_FILE_REGEX))
-        self.parser.add_argument('-s', '--storage', default='.processes.shelve',
-                            help='full path to the local storage db (default: ./.processes.shelve)')
-        self.parser.add_argument('-d', '--hook_data_json', default=None,
-                            help='a json object containing extra information to be passed to the hook-module')
-        self.parser.add_argument('-f', '--hook_data_json_file', default=None,
-                            help=('full path to a file containing a json object of extra info to be passed to the hook module.'
-                            'note - the values passed in through this trump the same values passed in through the `-d` param'))
-
-        # required, postitional arguments
-        self.parser.add_argument('folder', help='full path to folder of input videos to process')
-        self.parser.add_argument('hook_module', help='full path to hook module for custom functions (a python file)')
-        self.parser.add_argument('host', help='the IP-address or hostname of the segmenter')
-        self.define_custom_args()
-
-    def init_args(self):
-        self.args = self.parser.parse_args()
-        if self.args.verbose:
-            logging.getLogger().setLevel(logging.DEBUG)
-        elif self.args.quiet:
-            logging.getLogger().setLevel(logging.ERROR)
-        logging.info("submitted hooks module: %r", self.args.hook_module)
-        self.module = imp.load_source('hooks_module', self.args.hook_module)
-        # ensure all required callback functions exist
-        for hook_callback in self.REQUIRED_MODULE_CALLBACK_FUNCTIONS:
-            if not hasattr(self.module, hook_callback):
-                logging.error("hooks-module (%s) is missing required function: %s", self.args.hook_module, hook_callback)
-                logging.error("see README.md for information on required hook callback functions")
-                sys.exit(1)
-        if hasattr(self.module, 'set_hook_data'):
-            hook_data = dict(logger=logging.getLogger())
-            if self.args.hook_data_json:
-                hook_data.update(json.loads(self.args.hook_data_json))
-            if self.args.hook_data_json_file:
-                if not os.path.exists(self.args.hook_data_json_file):
-                    logging.error("--hook_data_json_file value: %s does not exist", self.args.hook_data_json_file)
-                    sys.exit(1)
-                try:
-                    with open(self.args.hook_data_json_file) as fh:
-                        data = json.loads(fh.read())
-                except:
-                    logging.error("error while loading json data from file: %s", self.args.hook_data_json_file)
-                    logging.error("traceback:\n%r", traceback.format_exc())
-                    sys.exit(1)
-                hook_data.update(data)
-            self.module.set_hook_data(hook_data)
 
     def run(self):
         self.init_args()
@@ -305,7 +327,7 @@ class GenericImporter(object):
         
     def register_camera(self, camera_name):
         host, port = self.args.host, self.args.port
-        return self.module.register_camera(camera_name, host, port)
+        return self.module.register_camera(camera_name, host=host, port=port)
 
     def assign_job_ids(self, db, unscheduled):
         logging.debug("assigning job id: %r", unscheduled)
@@ -319,10 +341,10 @@ class GenericImporter(object):
             return self.module.register_jobs(self, db, jobs)
         return
 
-    def post_video(self, camera_name, timestamp, filepath, latlng):
+    def post_video(self, camera_name, timestamp, filepath, location):
         host, port = self.args.host, self.args.port
         camera_id = self.cameras[camera_name].get('camera_id')
-        return self.module.post_video_content(host, port, camera_name, camera_id, filepath, timestamp, latlng)
+        return self.module.post_video_content(camera_name, camera_id, filepath, timestamp, location=location, host=host, port=port)
 
 def main():
     job_id = GenericImporter().run()
