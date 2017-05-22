@@ -27,7 +27,7 @@ except:
 DESCRIPTION = \
 """
 This script traverses a directory of video files, parses the file names for metadata
-(like camera-name and video-timestamp), and sends the videos to a web-service to be segmented
+(like the name of the camera and beginning timestamp of the video), and sends the videos to a web-service to be segmented
 and labeled. This script is general in that it can interoperate with any service that implements
 a python module that defines the required functions `register_camera` and `post_video_content`.
 """
@@ -61,7 +61,6 @@ def get_duration(filename):
 class GenericImporter(object):
 
     def __init__(self):
-        self.DEFAULT_CAMERA_NAME = 'unnamed' # used if we can't parse a camera name from video file names
         self.REQUIRED_MODULE_CALLBACK_FUNCTIONS = ['register_camera', 'post_video_content']
         self.DEFAULT_FILE_REGEX = ".*/(?P<camera>\w+?)\-.*\-(?P<epoch>\d+)\.mp4"
         self.handle_args()
