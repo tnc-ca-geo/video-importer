@@ -29,15 +29,15 @@ DESCRIPTION = \
 This script traverses a directory of video files, parses the file names for metadata
 (like camera-name and video-timestamp), and sends the videos to a web-service to be segmented
 and labeled. This script is general in that it can interoperate with any service that implements
-a python moduel that defines the required functions `register_camera` and `post_video_content`.
+a python module that defines the required functions `register_camera` and `post_video_content`.
 """
 
 EXAMPLES = \
 """
 The following example posts videos from the "~/video_input_files" directory, through the hook-module
-at ~/hook_service/hook_module.py to the segmenter located at the address http://my_segmenter_service:8080/videocontent.
+at ~/hook_service/hook_module.py to the segmenter located at the address http://my_segmenter_service:8080/api/content.
 
-python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/video_input_files ~/hook_service/hook_module.py http://my_segmenter_service:8080/videocontent
+python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/video_input_files ~/hook_service/hook_module.py http://my_segmenter_service:8080/api/content
 """
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -87,7 +87,7 @@ class GenericImporter(object):
                             help='a json object containing extra information to be passed to the hook-module')
         self.parser.add_argument('-f', '--hook_data_json_file', default=None,
                             help=('full path to a file containing a json object of extra info to be passed to the hook module.'
-                            'note - the values passed in through this trump the same values passed in through the `-d` param'))
+                            'note - the values passed in through the -d argument trump the values defined in the hook-data-json-file'))
 
         # required, postitional arguments
         self.parser.add_argument('folder', help='full path to folder of input videos to process')
@@ -112,12 +112,7 @@ class GenericImporter(object):
                 sys.exit(1)
         if hasattr(self.module, 'set_hook_data'):
             hook_data = dict(logger=logging.getLogger())
-            if self.args.hook_data_json:
-                hook_data.update(json.loads(self.args.hook_data_json))
             if self.args.hook_data_json_file:
-                if not os.path.exists(self.args.hook_data_json_file):
-                    logging.error("--hook_data_json_file value: %s does not exist", self.args.hook_data_json_file)
-                    sys.exit(1)
                 try:
                     with open(self.args.hook_data_json_file) as fh:
                         data = json.loads(fh.read())
@@ -126,6 +121,8 @@ class GenericImporter(object):
                     logging.error("traceback:\n%r", traceback.format_exc())
                     sys.exit(1)
                 hook_data.update(data)
+            if self.args.hook_data_json:
+                hook_data.update(json.loads(self.args.hook_data_json))
             self.module.set_hook_data(hook_data)
 
     
