@@ -54,7 +54,7 @@ def get_duration(filename):
             duration = metadata.getValues('duration')[0].total_seconds()
         return duration
     except:
-        logging.error("error while getting duration meta-data from movie (%s)", filename)
+        logging.error("error while getting duration metadata from movie (%s)", filename)
         logging.error(traceback.format_exc())
         return None
 
@@ -77,7 +77,7 @@ class GenericImporter(object):
         self.parser.add_argument('-p', '--port', default=None, help='the segmenter port number (default: 8080)')
         self.parser.add_argument('--host', default=None, help='the IP address or hostname of the segmenter')
         self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, 
-                help=('regex to extract input-file meta-data. The two capture group fields are <camera> and <epoch> '
+                help=('regex to extract input-file metadata. The two capture group fields are <camera> and <epoch> '
                      'which capture the name of the camera that the video originates from and the timestamp of the start of '
                      'the video respectively. (default: "%s")' % self.DEFAULT_FILE_REGEX))
         self.parser.add_argument('-s', '--storage', default='.processes.shelve',
