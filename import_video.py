@@ -91,7 +91,6 @@ class GenericImporter(object):
         # required, postitional arguments
         self.parser.add_argument('folder', help='full path to folder of input videos to process')
         self.parser.add_argument('hook_module', help='full path to hook module for custom functions (a python file)')
-        # self.parser.add_argument('host', help='the IP-address or hostname of the segmenter')
         self.define_custom_args()
     
 
@@ -145,8 +144,9 @@ class GenericImporter(object):
                     lng = float(match.group('lng'))
                 except: pass
         if not camera_name:
+            # hard fail on no camera name, something went wrong
             logging.error("unable to parse camera name from file: %s using regex: %s.", path, self.regex)
-            return None
+            sys.exit(1)
         if not epoch:
             epoch = os.path.getctime(path)        
             logging.warn('did not detect epoch, assuming "%s" (time file was last changed)', epoch)

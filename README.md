@@ -51,9 +51,9 @@ usage: import_video.py [-h] [-v] [-q] [-c] [-p PORT] [--host HOST] [-r REGEX]
                        folder hook_module
 
 This script traverses a directory of video files, parses the file names for metadata
-(like camera-name and video-timestamp), and sends the videos to a web-service to be segmented
+(like the name of the camera and beginning timestamp of the video), and sends the videos to a web-service to be segmented
 and labeled. This script is general in that it can interoperate with any service that implements
-a python moduel that defines the required functions `register_camera` and `post_video_content`.
+a python module that defines the required functions `register_camera` and `post_video_content`.
 
 positional arguments:
   folder                full path to folder of input videos to process
@@ -83,17 +83,17 @@ optional arguments:
   -f HOOK_DATA_JSON_FILE, --hook_data_json_file HOOK_DATA_JSON_FILE
                         full path to a file containing a json object of extra
                         info to be passed to the hook module.note - the values
-                        passed in through this trump the same values passed in
-                        through the `-d` param
+                        passed in through the -d argument trump the values
+                        defined in the hook-data-json-file
 
 The following example posts videos from the "~/video_input_files" directory, through the hook-module
-at ~/hook_service/hook_module.py to the segmenter located at the address http://my_segmenter_service:8080/videocontent.
+at ~/hook_service/hook_module.py to the segmenter located at the address http://my_segmenter_service:8080/api/content.
 
-python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/video_input_files ~/hook_service/hook_module.py http://my_segmenter_service:8080/videocontent
+python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/video_input_files ~/hook_service/hook_module.py http://my_segmenter_service:8080/api/content
 
 ```
 
-The video-importer will traverse a directory to extract the camera-name and video-timestamp from the video filenames,
+The video-importer will traverse a directory to extract the name of the camera and beginning timestamp from the video filenames,
 register the cameras with the requested hook services, and submit the video files for event segmentation and labeling.
 
 ### Metadata Extraction with `--regex`
