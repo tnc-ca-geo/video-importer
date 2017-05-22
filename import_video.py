@@ -342,10 +342,10 @@ class GenericImporter(object):
             return self.module.register_jobs(self, db, jobs)
         return
 
-    def post_video(self, camera_name, timestamp, filepath, latlng):
+    def post_video(self, camera_name, timestamp, filepath, location):
         host, port = self.args.host, self.args.port
         camera_id = self.cameras[camera_name].get('camera_id')
-        return self.module.post_video_content(camera_name, camera_id, filepath, timestamp, latlng, host=host, port=port)
+        return self.module.post_video_content(camera_name, camera_id, filepath, timestamp, location=location, host=host, port=port)
 
 def main():
     job_id = GenericImporter().run()
