@@ -76,7 +76,7 @@ class GenericImporter(object):
         self.parser.add_argument('-q', '--quiet', action='store_true', default=False, help='set logging level to errors only')
         self.parser.add_argument('-c', '--csv', action='store_true', default=False, help='dump csv log file')
         self.parser.add_argument('-p', '--port', default=None, help='the segmenter port number (default: 8080)')
-        self.parser.add_argument('-p', '--host', default=None, help='the IP address or hostname of the segmenter')
+        self.parser.add_argument('--host', default=None, help='the IP address or hostname of the segmenter')
         self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, 
                 help=('regex to extract input-file meta-data. The two capture group fields are <camera> and <epoch> '
                      'which capture the name of the camera that the video originates from and the timestamp of the start of '
