@@ -49,7 +49,8 @@ def get_duration(filename):
     duration = None
     try:
         if HAVE_HACHOIR:
-            filename = unicode(filename, "utf-8")
+            #filename = unicode(filename, "utf-8")
+            filename = filename.encode('ascii', 'ignore')
             parser = createParser(filename)
             metadata = extractMetadata(parser, quality=1.0)
             duration = metadata.getValues('duration')[0].total_seconds()
