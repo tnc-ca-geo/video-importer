@@ -21,6 +21,7 @@ try:
     from hachoir_parser import createParser
     from hachoir_metadata import extractMetadata
     HAVE_HACHOIR = True
+    config.quiet = True # shut up the warning from hachior
 except:
     HAVE_HACHOIR = False
 
