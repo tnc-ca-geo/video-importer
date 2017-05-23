@@ -129,7 +129,7 @@ class GenericImporter(object):
 
     
     def get_params(self, path):
-        path = os.path.basename(os.path.normapath(path))
+        path = os.path.basename(os.path.normpath(path))
         camera_name = epoch = lat = lng = None
         if self.regex:
             match = self.regex.match(path)
