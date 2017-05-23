@@ -77,6 +77,9 @@ class GenericImporter(object):
         self.parser.add_argument('-c', '--csv', action='store_true', default=False, help='dump csv log file')
         self.parser.add_argument('-p', '--port', default=None, help='the segmenter port number (default: 8080)')
         self.parser.add_argument('--host', default=None, help='the IP address or hostname of the segmenter')
+        self.parser.add_argument('--camera_name_suffix', default=None, 
+                          help=("a string to append to the discovered camera names"
+                                "(helps to keep camera names unique across multiple import runs"))
         self.parser.add_argument('-r', '--regex', default=self.DEFAULT_FILE_REGEX, 
                 help=('regex to extract input-file metadata. The two capture group fields are <camera> and <epoch> '
                      'which capture the name of the camera that the video originates from and the timestamp of the start of '
@@ -152,6 +155,8 @@ class GenericImporter(object):
             epoch = os.path.getctime(path)        
             logging.warn('did not detect epoch, assuming "%s" (time file was last changed)', epoch)
         timestamp = datetime.datetime.fromtimestamp(epoch).isoformat()
+        if self.args.camera_name_suffix:
+            camera_name = camera_name + self.args.camera_name_suffix
         # in case the epoch does nt have milliseconds
         if len(timestamp)==19: timestamp = timestamp+'.000'
         return {'camera':camera_name, 'timestamp':timestamp, 'lat':lat, 'lng':lng}
