@@ -201,6 +201,8 @@ class GenericImporter(object):
                 return False
 
     def upload_folder(self, path):
+        if self.args.regex:
+            logging.debug("submitted regex: %s", self.args.regex)
         self.regex = self.args.regex and re.compile(self.args.regex)
         shelve_name = os.path.join(os.path.dirname(__file__), self.args.storage)
         shelve_name_lock = shelve_name + '.lock'
