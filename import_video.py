@@ -49,8 +49,7 @@ def get_duration(filename):
     duration = None
     try:
         if HAVE_HACHOIR:
-            #filename = unicode(filename, "utf-8")
-            filename = filename.encode('ascii', 'ignore')
+            filename = unicode(filename, "utf-8")
             parser = createParser(filename)
             metadata = extractMetadata(parser, quality=1.0)
             duration = metadata.getValues('duration')[0].total_seconds()
@@ -130,6 +129,7 @@ class GenericImporter(object):
 
     
     def get_params(self, path):
+        path = os.path.basename(os.path.normapath(path))
         camera_name = epoch = lat = lng = None
         if self.regex:
             match = self.regex.match(path)
