@@ -129,7 +129,6 @@ class GenericImporter(object):
 
     
     def get_params(self, path):
-        path = os.path.basename(os.path.normpath(path))
         camera_name = epoch = lat = lng = None
         if self.regex:
             match = self.regex.match(path)
@@ -150,7 +149,7 @@ class GenericImporter(object):
                 except: pass
         if not camera_name:
             # hard fail on no camera name, something went wrong
-            logging.error("unable to parse camera name from file: %s using regex: %s.", path, self.regex)
+            logging.error('unable to parse camera name from file: %s using regex: "%s."', path, self.args.regex)
             sys.exit(1)
         if not epoch:
             epoch = os.path.getctime(path)        
@@ -201,8 +200,6 @@ class GenericImporter(object):
                 return False
 
     def upload_folder(self, path):
-        if self.args.regex:
-            logging.debug("submitted regex: %s", self.args.regex)
         self.regex = self.args.regex and re.compile(self.args.regex)
         shelve_name = os.path.join(os.path.dirname(__file__), self.args.storage)
         shelve_name_lock = shelve_name + '.lock'
