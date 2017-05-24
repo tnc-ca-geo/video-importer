@@ -41,7 +41,8 @@ at ~/hook_service/hook_module.py to the segmenter located at the address http://
 python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/video_input_files ~/hook_service/hook_module.py http://my_segmenter_service:8080/api/content
 """
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, 
+        format='%(filename)15s, %(levelname)5s:%(funcName)16s():%(lineno)3d:   %(message)s')
 
 re_notascii = re.compile('\W')
 
@@ -49,8 +50,7 @@ def get_duration(filename):
     duration = None
     try:
         if HAVE_HACHOIR:
-            #filename = unicode(filename, "utf-8")
-            filename = filename.encode('ascii', 'ignore')
+            filename = unicode(filename, "utf-8")
             parser = createParser(filename)
             metadata = extractMetadata(parser, quality=1.0)
             duration = metadata.getValues('duration')[0].total_seconds()
@@ -150,7 +150,7 @@ class GenericImporter(object):
                 except: pass
         if not camera_name:
             # hard fail on no camera name, something went wrong
-            logging.error("unable to parse camera name from file: %s using regex: %s.", path, self.regex)
+            logging.error('unable to parse camera name from file: %s using regex: "%s."', path, self.args.regex)
             sys.exit(1)
         if not epoch:
             epoch = os.path.getctime(path)        
