@@ -41,7 +41,8 @@ at ~/hook_service/hook_module.py to the segmenter located at the address http://
 python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/video_input_files ~/hook_service/hook_module.py http://my_segmenter_service:8080/api/content
 """
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, 
+        format='%(filename)15s, %(levelname)5s:%(funcName)16s():%(lineno)3d:   %(message)s')
 
 re_notascii = re.compile('\W')
 
