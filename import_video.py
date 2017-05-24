@@ -137,9 +137,7 @@ class GenericImporter(object):
                 try:
                     camera_name = match.group('camera')
                     logging.info('camera_name: %s', camera_name)
-                except: 
-                    logging.error("exception while matching camera name")
-                    logging.error(traceback.format_exc())
+                except: pass
                 try:
                     epoch = int(match.group('epoch'))
                     logging.info('epoch: %s', epoch)
