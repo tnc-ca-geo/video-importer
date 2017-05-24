@@ -45,15 +45,20 @@ python import_video.py --help
 Which will output:
 
 ```man
-usage: import_video.py [-h] [-v] [-q] [-c] [-p PORT] [-r REGEX] [-s STORAGE]
-                       [-d HOOK_DATA_JSON] [-f HOOK_DATA_JSON_FILE]
-                       folder hook_module host
+usage: import_video.py [-h] [-v] [-q] [-c] [-p PORT] [--host HOST] [-r REGEX]
+                       [-s STORAGE] [-d HOOK_DATA_JSON]
+                       [-f HOOK_DATA_JSON_FILE]
+                       folder hook_module
+
+This script traverses a directory of video files, parses the file names for metadata
+(like the name of the camera and beginning timestamp of the video), and sends the videos to a web-service to be segmented
+and labeled. This script is general in that it can interoperate with any service that implements
+a python module that defines the required functions `register_camera` and `post_video_content`.
 
 positional arguments:
   folder                full path to folder of input videos to process
   hook_module           full path to hook module for custom functions (a
                         python file)
-  host                  the IP-address or hostname of the segmenter
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -61,6 +66,7 @@ optional arguments:
   -q, --quiet           set logging level to errors only
   -c, --csv             dump csv log file
   -p PORT, --port PORT  the segmenter port number (default: 8080)
+  --host HOST           the IP address or hostname of the segmenter
   -r REGEX, --regex REGEX
                         regex to extract input-file meta-data. The two capture
                         group fields are <camera> and <epoch> which capture
@@ -77,11 +83,17 @@ optional arguments:
   -f HOOK_DATA_JSON_FILE, --hook_data_json_file HOOK_DATA_JSON_FILE
                         full path to a file containing a json object of extra
                         info to be passed to the hook module.note - the values
-                        passed in through this trump the same values passed in
-                        through the `-d` param
+                        passed in through the -d argument trump the values
+                        defined in the hook-data-json-file
+
+The following example posts videos from the "~/video_input_files" directory, through the hook-module
+at ~/hook_service/hook_module.py to the segmenter located at the address http://my_segmenter_service:8080/api/content.
+
+python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/video_input_files ~/hook_service/hook_module.py http://my_segmenter_service:8080/api/content
+
 ```
 
-The video-importer will traverse a directory to extract the camera-name and video-timestamp from the video filenames,
+The video-importer will traverse a directory to extract the name of the camera and beginning timestamp from the video filenames,
 register the cameras with the requested hook services, and submit the video files for event segmentation and labeling.
 
 ### Metadata Extraction with `--regex`
