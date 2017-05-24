@@ -185,7 +185,7 @@ class GenericImporter(object):
 
     def hashfile(self, filename):
         hasher = hashlib.sha1()
-        with open(filename) as myfile:
+        with open(filename, 'rb') as myfile:
             for chunk in iter(lambda: myfile.read(4096), ''):
                 hasher.update(chunk)
             return hasher.hexdigest()
