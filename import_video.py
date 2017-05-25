@@ -42,7 +42,7 @@ python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/vide
 """
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, 
-        format='%(filename)15s, %(levelname)5s:%(funcName)16s():%(lineno)3d:   %(message)s')
+        format='%(levelname)7s - %(filename)15s:%(funcName)16s:%(lineno)3d:   %(message)s')
 
 re_notascii = re.compile('\W')
 
@@ -185,7 +185,7 @@ class GenericImporter(object):
 
     def hashfile(self, filename):
         hasher = hashlib.sha1()
-        with open(filename) as myfile:
+        with open(filename, 'rb') as myfile:
             for chunk in iter(lambda: myfile.read(4096), ''):
                 hasher.update(chunk)
             return hasher.hexdigest()
@@ -250,7 +250,8 @@ class GenericImporter(object):
                     unscheduled.append(params)
 
         if not found_new:
-            logging.info("no new files found to upload, exiting..")
+            logging.info("no new files found for uploading in directory: %s", path)
+            logging.info("if you wish to rerun the import on these files, delete the storage file at: %s", self.args.storage)
             sys.exit(0)
 
         for camera_name in self.cameras:
@@ -271,6 +272,8 @@ class GenericImporter(object):
         time.sleep(1)
         if hasattr(self.module, 'assign_job_ids'):
             job_id = self.assign_job_ids(db, unscheduled)
+            if not job_id:
+                logging.warn("no job_id returned from 'assign_job_id' hook function")
 
         total_count = len(unprocessed)
         jobs = set()
