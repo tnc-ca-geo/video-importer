@@ -42,7 +42,7 @@ python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/vide
 """
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, 
-        format='%(filename)15s, %(levelname)5s:%(funcName)16s():%(lineno)3d:   %(message)s')
+        format='%(levelname)7s - %(filename)15s:%(funcName)16s:%(lineno)3d:   %(message)s')
 
 re_notascii = re.compile('\W')
 
