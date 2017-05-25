@@ -250,7 +250,8 @@ class GenericImporter(object):
                     unscheduled.append(params)
 
         if not found_new:
-            logging.info("no new files found to upload, exiting..")
+            logging.info("no new files found for uploading in directory: %s", path)
+            logging.info("if you wish to rerun the import on these files, delete the storage file at: %s", self.args.storage)
             sys.exit(0)
 
         for camera_name in self.cameras:
