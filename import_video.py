@@ -271,6 +271,8 @@ class GenericImporter(object):
         time.sleep(1)
         if hasattr(self.module, 'assign_job_ids'):
             job_id = self.assign_job_ids(db, unscheduled)
+            if not job_id:
+                logging.warn("no job_id returned from 'assign_job_id' hook function")
 
         total_count = len(unprocessed)
         jobs = set()
