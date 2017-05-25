@@ -220,3 +220,16 @@ def set_hook_data(data_dict):
     """
 ```
 
+### Available Hooks Modules
+
+Below is a list of hook modules that are available for use with the `import_video.py` program. These hook modules allow you to interact 
+with different segmentation and analysis services.
+
+#### [Camio Hooks Modules](https://github.com/CamioCam/examples/tree/master/batch_import)
+
+This module allows you to import your video into [Camio](https://www.camio.com), through a [Camio Box](https://wwww.camio.com/box), for segmentation, analysis, and labeling.
+To use this one must have an account registered with Camio and a Camio Box (either [phyiscal](https://www.camio.com/box) or [virtual](https://www.camio.com/box/vm). Full instructions on
+how to use the `camio_hooks.py` module can be found in the [README](https://github.com/CamioCam/examples/blob/master/batch_import/README.md) and a simple example (complete with
+testing video data, sample hook configuation files, and more) can be found in the [EXAMPLE.md](https://github.com/CamioCam/examples/blob/master/batch_import/EXAMPLE.md) document.
+
+
