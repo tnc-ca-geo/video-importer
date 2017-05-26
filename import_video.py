@@ -43,6 +43,7 @@ python import_video.py -v --host_data_json_file "/tmp/host_data_json.json ~/vide
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, 
         format='%(levelname)7s - %(filename)15s:%(funcName)16s:%(lineno)3d:   %(message)s')
+logging.getLogger('requests').setLevel(logging.WARNING)
 
 re_notascii = re.compile('\W')
 
